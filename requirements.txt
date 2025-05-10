@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+sqlalchemy[asyncio]
+aiomysql
+python-jose[cryptography]
+passlib[bcrypt]
+pydantic
+openai
+python-dotenv
