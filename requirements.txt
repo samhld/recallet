@@ -7,3 +7,4 @@ passlib[bcrypt]
 pydantic
 openai
 python-dotenv
+pydantic-settings>=2.5.0
