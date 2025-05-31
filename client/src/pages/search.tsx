@@ -89,7 +89,7 @@ export default function SearchPage() {
 
     searchMutation.mutate({
       query: query.trim(),
-      category: category || undefined,
+      category: category && category !== "all" ? category : undefined,
     });
   };
 
@@ -244,7 +244,7 @@ export default function SearchPage() {
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Categories</SelectItem>
+                      <SelectItem value="all">All Categories</SelectItem>
                       <SelectItem value="meeting">Meeting Notes</SelectItem>
                       <SelectItem value="research">Research</SelectItem>
                       <SelectItem value="idea">Ideas</SelectItem>
