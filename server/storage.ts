@@ -118,15 +118,7 @@ export class DatabaseStorage implements IStorage {
     console.log("📊 User ID:", userId);
     console.log("🎯 Entities to search for:", entities);
     
-    // Create case-insensitive entity conditions
-    const entityConditions = entities.map(entity => 
-      or(
-        ilike(knowledgeGraph.sourceEntity, entity),
-        ilike(knowledgeGraph.targetEntity, entity)
-      )
-    );
-
-    // Search for entries with matching entities and similar relationship vectors
+    // Search by relationship similarity only, for the user's knowledge graph
     const results = await db
       .select({
         sourceEntity: knowledgeGraph.sourceEntity,
@@ -135,32 +127,18 @@ export class DatabaseStorage implements IStorage {
         distance: cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding)
       })
       .from(knowledgeGraph)
-      .where(
-        and(
-          eq(knowledgeGraph.userId, userId),
-          or(...entityConditions)
-        )
-      )
+      .where(eq(knowledgeGraph.userId, userId))
       .orderBy(cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding))
       .limit(10);
 
     console.log("📋 Raw database results:", results);
     console.log("🔢 Number of matches found:", results.length);
 
-    // Return the target entities that don't match the query entities
-    const answers = results.map(result => {
-      const queryEntitiesLower = entities.map(e => e.toLowerCase());
-      const sourceLower = result.sourceEntity.toLowerCase();
-      const targetLower = result.targetEntity.toLowerCase();
-      
-      // Return the entity that's NOT in the query
-      if (!queryEntitiesLower.includes(sourceLower)) {
-        return result.sourceEntity;
-      } else if (!queryEntitiesLower.includes(targetLower)) {
-        return result.targetEntity;
-      }
-      return result.targetEntity; // fallback
-    }).filter((entity, index, arr) => arr.indexOf(entity) === index); // remove duplicates
+    // Filter and return relevant target entities
+    const answers = results
+      .filter(result => result.distance < 0.5) // Only include reasonably similar relationships
+      .map(result => result.targetEntity)
+      .filter((entity, index, arr) => arr.indexOf(entity) === index); // remove duplicates
     
     console.log("✅ Final answers after processing:", answers);
     return answers;
