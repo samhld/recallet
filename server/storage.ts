@@ -114,6 +114,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchKnowledgeGraph(userId: number, entities: string[], relationshipEmbedding: number[]): Promise<string[]> {
+    console.log("🔍 Knowledge Graph Search Debug:");
+    console.log("📊 User ID:", userId);
+    console.log("🎯 Entities to search for:", entities);
+    
     // Create case-insensitive entity conditions
     const entityConditions = entities.map(entity => 
       or(
@@ -140,8 +144,11 @@ export class DatabaseStorage implements IStorage {
       .orderBy(cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding))
       .limit(10);
 
+    console.log("📋 Raw database results:", results);
+    console.log("🔢 Number of matches found:", results.length);
+
     // Return the target entities that don't match the query entities
-    return results.map(result => {
+    const answers = results.map(result => {
       const queryEntitiesLower = entities.map(e => e.toLowerCase());
       const sourceLower = result.sourceEntity.toLowerCase();
       const targetLower = result.targetEntity.toLowerCase();
@@ -154,6 +161,9 @@ export class DatabaseStorage implements IStorage {
       }
       return result.targetEntity; // fallback
     }).filter((entity, index, arr) => arr.indexOf(entity) === index); // remove duplicates
+    
+    console.log("✅ Final answers after processing:", answers);
+    return answers;
   }
 
   async getUserStats(userId: number): Promise<{
