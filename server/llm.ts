@@ -73,6 +73,13 @@ Now parse this input: "${input}"`;
       relationships = [relationships];
     }
     
+    // Replace "<user>" with actual username in all relationships
+    relationships = relationships.map((rel: any) => ({
+      ...rel,
+      sourceEntity: rel.sourceEntity.replace(/<user>/g, username),
+      targetEntity: rel.targetEntity.replace(/<user>/g, username)
+    }));
+    
     console.log("📊 Parsed relationships:", JSON.stringify(relationships, null, 2));
     console.log("🔢 Number of relationships extracted:", relationships.length);
     console.log("🔍 === LLM INPUT PARSING END ===\n");
@@ -156,6 +163,14 @@ Now parse this query: "${query}"`;
     if (!content) throw new Error("No response from OpenAI");
     
     const parsed = JSON.parse(content);
+    
+    // Replace "<user>" with actual username in entities
+    if (parsed.entities) {
+      parsed.entities = parsed.entities.map((entity: string) => 
+        entity.replace(/<user>/g, username)
+      );
+    }
+    
     console.log("📊 Parsed query structure:", JSON.stringify(parsed, null, 2));
     console.log("🔍 === LLM QUERY PARSING END ===\n");
     
