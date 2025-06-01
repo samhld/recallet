@@ -66,7 +66,12 @@ Now parse this input: "${input}"`;
     if (!content) throw new Error("No response from OpenAI");
     
     const parsed = JSON.parse(content);
-    const relationships = parsed.relationships || parsed;
+    let relationships = parsed.relationships || parsed;
+    
+    // If the response is a single object, wrap it in an array
+    if (!Array.isArray(relationships)) {
+      relationships = [relationships];
+    }
     
     console.log("📊 Parsed relationships:", JSON.stringify(relationships, null, 2));
     console.log("🔢 Number of relationships extracted:", relationships.length);
