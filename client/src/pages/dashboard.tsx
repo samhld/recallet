@@ -137,6 +137,9 @@ export default function Dashboard() {
                 <Link href="/search" className="text-gray-500 hover:text-gray-700 pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
                   Search
                 </Link>
+                <Link href="/smart-search" className="text-gray-500 hover:text-gray-700 pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
+                  Smart Search
+                </Link>
               </nav>
             </div>
             <div className="flex items-center space-x-4">
@@ -157,18 +160,23 @@ export default function Dashboard() {
       {/* Mobile Navigation */}
       <div className="md:hidden bg-white border-b border-gray-200">
         <div className="px-4 py-2">
-          <div className="flex space-x-4">
-            <Button className="flex-1 text-sm font-medium text-primary bg-blue-50">
+          <div className="flex space-x-2">
+            <Button className="flex-1 text-xs font-medium text-primary bg-blue-50">
               Dashboard
             </Button>
             <Link href="/add" className="flex-1">
-              <Button variant="ghost" className="w-full text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+              <Button variant="ghost" className="w-full text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
                 Add
               </Button>
             </Link>
             <Link href="/search" className="flex-1">
-              <Button variant="ghost" className="w-full text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+              <Button variant="ghost" className="w-full text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
                 Search
+              </Button>
+            </Link>
+            <Link href="/smart-search" className="flex-1">
+              <Button variant="ghost" className="w-full text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+                Smart
               </Button>
             </Link>
           </div>

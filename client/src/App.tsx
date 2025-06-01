@@ -8,6 +8,7 @@ import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import AddInput from "@/pages/add-input";
 import Search from "@/pages/search";
+import SmartSearch from "@/pages/smart-search";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -33,6 +34,7 @@ function Router() {
           <Route path="/" component={Dashboard} />
           <Route path="/add" component={AddInput} />
           <Route path="/search" component={Search} />
+          <Route path="/smart-search" component={SmartSearch} />
         </>
       )}
       <Route component={NotFound} />
