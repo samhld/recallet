@@ -140,16 +140,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Parse input with LLM to extract entity-relationships
       try {
+        console.log("\n🚀 === PROCESSING INPUT FOR KNOWLEDGE GRAPH ===");
+        console.log("📝 Input content:", inputData.content);
+        console.log("👤 User:", user.username);
+        
         const entityRelationships = await parseInputToEntityRelationships(
           inputData.content,
           user.username
         );
         
+        console.log("🔗 Creating knowledge graph entries...");
+        
         // Create knowledge graph entries for each relationship
         for (const er of entityRelationships) {
+          console.log(`\n📊 Processing relationship: ${er.sourceEntity} -> ${er.relationship} -> ${er.targetEntity}`);
+          
           const relationshipEmbedding = await createEmbedding(er.relationship);
           
-          await storage.createKnowledgeGraphEntry({
+          const kgEntry = await storage.createKnowledgeGraphEntry({
             userId: req.session.userId!,
             sourceEntity: er.sourceEntity,
             relationship: er.relationship,
@@ -157,11 +165,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             targetEntity: er.targetEntity,
             originalInput: inputData.content,
           });
+          
+          console.log("✅ Knowledge graph entry created with ID:", kgEntry.id);
         }
         
-        console.log(`Parsed ${entityRelationships.length} relationships from input`);
+        console.log(`\n🎉 Successfully parsed ${entityRelationships.length} relationships from input`);
+        console.log("🚀 === KNOWLEDGE GRAPH PROCESSING COMPLETE ===\n");
       } catch (llmError) {
-        console.error("LLM parsing failed, but input was saved:", llmError);
+        console.error("❌ LLM parsing failed, but input was saved:", llmError);
         // Continue even if LLM parsing fails
       }
       
@@ -209,17 +220,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { query } = z.object({ query: z.string().min(1) }).parse(req.body);
       
+      console.log("\n🔍 === SMART SEARCH REQUEST START ===");
+      console.log("❓ User query:", query);
+      
       // Get the user for LLM parsing
       const user = await storage.getUser(req.session.userId!);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
       
+      console.log("👤 User:", user.username);
+      
       // Parse query with LLM to extract entities and relationships
       const parsed = await parseQueryToEntityRelationship(query, user.username);
       
+      console.log("🎯 Extracted entities:", parsed.entities);
+      console.log("🔗 Extracted relationship:", parsed.relationship);
+      
       // Create embedding for the relationship
       const relationshipEmbedding = await createEmbedding(parsed.relationship);
+      
+      console.log("🔍 Searching knowledge graph...");
       
       // Search knowledge graph
       const answers = await storage.searchKnowledgeGraph(
@@ -228,12 +249,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         relationshipEmbedding
       );
       
+      console.log("📊 Found answers:", answers);
+      console.log("🔢 Number of answers:", answers.length);
+      
       // Log the query
       await storage.createQuery({
         userId: req.session.userId!,
         query,
         resultCount: answers.length,
       });
+
+      console.log("✅ Smart search complete!");
+      console.log("🔍 === SMART SEARCH REQUEST END ===\n");
 
       res.json({ 
         query: parsed,
@@ -242,7 +269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         relationship: parsed.relationship
       });
     } catch (error) {
-      console.error("Error in smart search:", error);
+      console.error("❌ Error in smart search:", error);
       res.status(400).json({ message: "Smart search failed" });
     }
   });

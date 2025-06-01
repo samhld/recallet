@@ -39,6 +39,11 @@ Output: [
 Now parse this input: "${input}"`;
 
   try {
+    console.log("\n🔍 === LLM INPUT PARSING START ===");
+    console.log("📝 Input text:", input);
+    console.log("👤 Username:", username);
+    console.log("💭 Prompt sent to LLM:", prompt);
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -56,26 +61,39 @@ Now parse this input: "${input}"`;
     });
 
     const content = response.choices[0].message.content;
+    console.log("🤖 Raw LLM response:", content);
+    
     if (!content) throw new Error("No response from OpenAI");
     
     const parsed = JSON.parse(content);
-    return parsed.relationships || parsed;
+    const relationships = parsed.relationships || parsed;
+    
+    console.log("📊 Parsed relationships:", JSON.stringify(relationships, null, 2));
+    console.log("🔢 Number of relationships extracted:", relationships.length);
+    console.log("🔍 === LLM INPUT PARSING END ===\n");
+    
+    return relationships;
   } catch (error) {
-    console.error("Error parsing input with LLM:", error);
+    console.error("❌ Error parsing input with LLM:", error);
     throw new Error("Failed to parse input with LLM");
   }
 }
 
 export async function createEmbedding(text: string): Promise<number[]> {
   try {
+    console.log("🔗 Creating embedding for text:", text);
+    
     const response = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: text,
     });
 
-    return response.data[0].embedding;
+    const embedding = response.data[0].embedding;
+    console.log("✅ Embedding created, dimensions:", embedding.length);
+    
+    return embedding;
   } catch (error) {
-    console.error("Error creating embedding:", error);
+    console.error("❌ Error creating embedding:", error);
     throw new Error("Failed to create embedding");
   }
 }
@@ -106,6 +124,11 @@ Output: {"entities": ["Jake Owen"], "relationship": "does"}
 Now parse this query: "${query}"`;
 
   try {
+    console.log("\n🔍 === LLM QUERY PARSING START ===");
+    console.log("❓ Query:", query);
+    console.log("👤 Username:", username);
+    console.log("💭 Prompt sent to LLM:", prompt);
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -123,11 +146,17 @@ Now parse this query: "${query}"`;
     });
 
     const content = response.choices[0].message.content;
+    console.log("🤖 Raw LLM response:", content);
+    
     if (!content) throw new Error("No response from OpenAI");
     
-    return JSON.parse(content);
+    const parsed = JSON.parse(content);
+    console.log("📊 Parsed query structure:", JSON.stringify(parsed, null, 2));
+    console.log("🔍 === LLM QUERY PARSING END ===\n");
+    
+    return parsed;
   } catch (error) {
-    console.error("Error parsing query with LLM:", error);
+    console.error("❌ Error parsing query with LLM:", error);
     throw new Error("Failed to parse query with LLM");
   }
 }
