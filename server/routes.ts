@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
 import { insertUserSchema, insertInputSchema } from "@shared/schema";
+import { parseInputToEntityRelationships, createEmbedding, parseQueryToEntityRelationship } from "./llm";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 
@@ -128,7 +129,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.session.userId,
       });
       
+      // Create the traditional input
       const input = await storage.createInput(inputData);
+      
+      // Get the user for LLM parsing
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Parse input with LLM to extract entity-relationships
+      try {
+        const entityRelationships = await parseInputToEntityRelationships(
+          inputData.content,
+          user.username
+        );
+        
+        // Create knowledge graph entries for each relationship
+        for (const er of entityRelationships) {
+          const relationshipEmbedding = await createEmbedding(er.relationship);
+          
+          await storage.createKnowledgeGraphEntry({
+            userId: req.session.userId!,
+            sourceEntity: er.sourceEntity,
+            relationship: er.relationship,
+            relationshipVec: relationshipEmbedding,
+            targetEntity: er.targetEntity,
+            originalInput: inputData.content,
+          });
+        }
+        
+        console.log(`Parsed ${entityRelationships.length} relationships from input`);
+      } catch (llmError) {
+        console.error("LLM parsing failed, but input was saved:", llmError);
+        // Continue even if LLM parsing fails
+      }
+      
       res.json(input);
     } catch (error) {
       console.error("Error creating input:", error);
@@ -165,6 +201,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error searching:", error);
       res.status(400).json({ message: "Invalid search data" });
+    }
+  });
+
+  // Smart search using knowledge graph
+  app.post("/api/smart-search", requireAuth, async (req, res) => {
+    try {
+      const { query } = z.object({ query: z.string().min(1) }).parse(req.body);
+      
+      // Get the user for LLM parsing
+      const user = await storage.getUser(req.session.userId!);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Parse query with LLM to extract entities and relationships
+      const parsed = await parseQueryToEntityRelationship(query, user.username);
+      
+      // Create embedding for the relationship
+      const relationshipEmbedding = await createEmbedding(parsed.relationship);
+      
+      // Search knowledge graph
+      const answers = await storage.searchKnowledgeGraph(
+        req.session.userId!,
+        parsed.entities,
+        relationshipEmbedding
+      );
+      
+      // Log the query
+      await storage.createQuery({
+        userId: req.session.userId!,
+        query,
+        resultCount: answers.length,
+      });
+
+      res.json({ 
+        query: parsed,
+        answers,
+        entities: parsed.entities,
+        relationship: parsed.relationship
+      });
+    } catch (error) {
+      console.error("Error in smart search:", error);
+      res.status(400).json({ message: "Smart search failed" });
     }
   });
 
