@@ -1,6 +1,6 @@
-import { users, inputs, queries, type User, type InsertUser, type Input, type InsertInput, type Query, type InsertQuery } from "@shared/schema";
+import { users, inputs, queries, knowledgeGraph, type User, type InsertUser, type Input, type InsertInput, type Query, type InsertQuery, type KnowledgeGraph, type InsertKnowledgeGraph } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, ilike, or, and, sql } from "drizzle-orm";
+import { eq, desc, ilike, or, and, sql, cosineDistance } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -16,6 +16,10 @@ export interface IStorage {
   // Query operations
   createQuery(query: InsertQuery): Promise<Query>;
   getUserQueries(userId: number, limit?: number): Promise<Query[]>;
+  
+  // Knowledge Graph operations
+  createKnowledgeGraphEntry(entry: InsertKnowledgeGraph): Promise<KnowledgeGraph>;
+  searchKnowledgeGraph(userId: number, entities: string[], relationshipEmbedding: number[]): Promise<string[]>;
   
   // Stats operations
   getUserStats(userId: number): Promise<{
@@ -99,6 +103,57 @@ export class DatabaseStorage implements IStorage {
       .where(eq(queries.userId, userId))
       .orderBy(desc(queries.createdAt))
       .limit(limit);
+  }
+
+  async createKnowledgeGraphEntry(entry: InsertKnowledgeGraph): Promise<KnowledgeGraph> {
+    const [graphEntry] = await db
+      .insert(knowledgeGraph)
+      .values(entry)
+      .returning();
+    return graphEntry;
+  }
+
+  async searchKnowledgeGraph(userId: number, entities: string[], relationshipEmbedding: number[]): Promise<string[]> {
+    // Create case-insensitive entity conditions
+    const entityConditions = entities.map(entity => 
+      or(
+        ilike(knowledgeGraph.sourceEntity, entity),
+        ilike(knowledgeGraph.targetEntity, entity)
+      )
+    );
+
+    // Search for entries with matching entities and similar relationship vectors
+    const results = await db
+      .select({
+        sourceEntity: knowledgeGraph.sourceEntity,
+        targetEntity: knowledgeGraph.targetEntity,
+        relationship: knowledgeGraph.relationship,
+        distance: cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding)
+      })
+      .from(knowledgeGraph)
+      .where(
+        and(
+          eq(knowledgeGraph.userId, userId),
+          or(...entityConditions)
+        )
+      )
+      .orderBy(cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding))
+      .limit(10);
+
+    // Return the target entities that don't match the query entities
+    return results.map(result => {
+      const queryEntitiesLower = entities.map(e => e.toLowerCase());
+      const sourceLower = result.sourceEntity.toLowerCase();
+      const targetLower = result.targetEntity.toLowerCase();
+      
+      // Return the entity that's NOT in the query
+      if (!queryEntitiesLower.includes(sourceLower)) {
+        return result.sourceEntity;
+      } else if (!queryEntitiesLower.includes(targetLower)) {
+        return result.targetEntity;
+      }
+      return result.targetEntity; // fallback
+    }).filter((entity, index, arr) => arr.indexOf(entity) === index); // remove duplicates
   }
 
   async getUserStats(userId: number): Promise<{
