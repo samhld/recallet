@@ -14,6 +14,9 @@ interface Query {
   id: number;
   query: string;
   resultCount: number;
+  entities: string[] | null;
+  relationship: string | null;
+  postgresQuery: string | null;
   createdAt: string;
 }
 
@@ -84,21 +87,10 @@ export default function QueryHistoryPage() {
     return new Date(dateString).toLocaleString();
   };
 
-  // Mock data for demonstration - in a real app this would come from the backend
   const getQueryDetails = (query: Query) => ({
-    entities: ["sam-test1"],
-    relationship: "favorite artist is",
-    postgresQuery: `
-SELECT 
-  source_entity, 
-  target_entity, 
-  relationship,
-  cosine_distance(relationship_vec, $1) as distance
-FROM knowledge_graph 
-WHERE user_id = $2 
-ORDER BY cosine_distance(relationship_vec, $1) 
-LIMIT 10;
-    `.trim()
+    entities: query.entities || [],
+    relationship: query.relationship || "Unknown",
+    postgresQuery: query.postgresQuery || "No query data available"
   });
 
   return (

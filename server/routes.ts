@@ -252,11 +252,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("📊 Found answers:", answers);
       console.log("🔢 Number of answers:", answers.length);
       
-      // Log the query
+      // Generate the PostgreSQL query that was executed for debugging
+      const postgresQuery = `SELECT 
+  source_entity, 
+  target_entity, 
+  relationship,
+  cosine_distance(relationship_vec, $1) as distance
+FROM knowledge_graph 
+WHERE user_id = $2 
+ORDER BY cosine_distance(relationship_vec, $1) 
+LIMIT 10;`;
+
+      // Log the query with analysis data
       await storage.createQuery({
         userId: req.session.userId!,
         query,
         resultCount: answers.length,
+        entities: parsed.entities,
+        relationship: parsed.relationship,
+        postgresQuery,
       });
 
       console.log("✅ Smart search complete!");
