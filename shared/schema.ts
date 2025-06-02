@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar, vector, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, varchar, vector, jsonb, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -39,6 +39,10 @@ export const knowledgeGraph = pgTable("knowledge_graph", {
   targetEntity: text("target_entity").notNull(),
   originalInput: text("original_input").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+}, (table) => {
+  return {
+    uniqueKnowledgeEntry: unique().on(table.userId, table.sourceEntity, table.relationship, table.targetEntity),
+  };
 });
 
 // Relations
