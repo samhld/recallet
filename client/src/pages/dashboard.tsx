@@ -140,6 +140,9 @@ export default function Dashboard() {
                 <Link href="/smart-search" className="text-gray-500 hover:text-gray-700 pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
                   Smart Search
                 </Link>
+                <Link href="/query-history" className="text-gray-500 hover:text-gray-700 pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
+                  Query History
+                </Link>
               </nav>
             </div>
             <div className="flex items-center space-x-4">

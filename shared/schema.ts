@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar, vector } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, varchar, vector, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -24,6 +24,9 @@ export const queries = pgTable("queries", {
   userId: integer("user_id").notNull().references(() => users.id),
   query: text("query").notNull(),
   resultCount: integer("result_count").notNull().default(0),
+  entities: jsonb("entities"),
+  relationship: text("relationship"),
+  postgresQuery: text("postgres_query"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
