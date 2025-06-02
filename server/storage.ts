@@ -106,11 +106,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createKnowledgeGraphEntry(entry: InsertKnowledgeGraph): Promise<KnowledgeGraph> {
-    const [graphEntry] = await db
-      .insert(knowledgeGraph)
-      .values(entry)
-      .returning();
-    return graphEntry;
+    try {
+      const [graphEntry] = await db
+        .insert(knowledgeGraph)
+        .values(entry)
+        .returning();
+      return graphEntry;
+    } catch (error: any) {
+      // If it's a unique constraint violation, check if the entry already exists
+      if (error.code === '23505') { // PostgreSQL unique constraint violation code
+        console.log(`⚠️ Duplicate knowledge graph entry detected, fetching existing: ${entry.sourceEntity} -> ${entry.relationship} -> ${entry.targetEntity}`);
+        const [existing] = await db
+          .select()
+          .from(knowledgeGraph)
+          .where(
+            and(
+              eq(knowledgeGraph.userId, entry.userId),
+              eq(knowledgeGraph.sourceEntity, entry.sourceEntity),
+              eq(knowledgeGraph.relationship, entry.relationship),
+              eq(knowledgeGraph.targetEntity, entry.targetEntity)
+            )
+          );
+        return existing;
+      }
+      throw error;
+    }
   }
 
   async searchKnowledgeGraph(userId: number, entities: string[], relationshipEmbedding: number[]): Promise<string[]> {
