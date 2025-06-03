@@ -1,6 +1,6 @@
-import { db } from './server/db.js';
-import { knowledgeGraph, entities, relationships, users } from './shared/schema.js';
-import { generateEntityDescription, createEmbedding } from './server/llm.js';
+import { db } from './server/db.ts';
+import { knowledgeGraph, entities, relationships, users } from './shared/schema.ts';
+import { generateEntityDescription, createEmbedding } from './server/llm.ts';
 import { eq, and } from 'drizzle-orm';
 
 async function backfillEntitiesAndRelationships() {
