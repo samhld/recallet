@@ -47,7 +47,7 @@ Now parse this input: "${input}"`;
     console.log("💭 Prompt sent to LLM:", prompt);
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4-1-nano",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
@@ -148,7 +148,7 @@ Now parse this query: "${query}"`;
     console.log("💭 Prompt sent to LLM:", prompt);
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4-1-nano",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",

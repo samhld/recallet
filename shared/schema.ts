@@ -30,6 +30,35 @@ export const queries = pgTable("queries", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const entities = pgTable("entities", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  descriptionVec: vector("description_vec", { dimensions: 1536 }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => {
+  return {
+    uniqueEntity: unique().on(table.userId, table.name),
+  };
+});
+
+export const relationships = pgTable("relationships", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  sourceEntityId: integer("source_entity_id").notNull().references(() => entities.id),
+  targetEntityId: integer("target_entity_id").notNull().references(() => entities.id),
+  relationship: text("relationship").notNull(),
+  relationshipVec: vector("relationship_vec", { dimensions: 1536 }),
+  originalInput: text("original_input").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => {
+  return {
+    uniqueRelationship: unique().on(table.userId, table.sourceEntityId, table.relationship, table.targetEntityId),
+  };
+});
+
+// Keep the old knowledge_graph table for now to avoid data loss
 export const knowledgeGraph = pgTable("knowledge_graph", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -49,6 +78,8 @@ export const knowledgeGraph = pgTable("knowledge_graph", {
 export const usersRelations = relations(users, ({ many }) => ({
   inputs: many(inputs),
   queries: many(queries),
+  entities: many(entities),
+  relationships: many(relationships),
   knowledgeGraph: many(knowledgeGraph),
 }));
 
@@ -63,6 +94,32 @@ export const queriesRelations = relations(queries, ({ one }) => ({
   user: one(users, {
     fields: [queries.userId],
     references: [users.id],
+  }),
+}));
+
+export const entitiesRelations = relations(entities, ({ one, many }) => ({
+  user: one(users, {
+    fields: [entities.userId],
+    references: [users.id],
+  }),
+  sourceRelationships: many(relationships, { relationName: "sourceEntity" }),
+  targetRelationships: many(relationships, { relationName: "targetEntity" }),
+}));
+
+export const relationshipsRelations = relations(relationships, ({ one }) => ({
+  user: one(users, {
+    fields: [relationships.userId],
+    references: [users.id],
+  }),
+  sourceEntity: one(entities, {
+    fields: [relationships.sourceEntityId],
+    references: [entities.id],
+    relationName: "sourceEntity",
+  }),
+  targetEntity: one(entities, {
+    fields: [relationships.targetEntityId],
+    references: [entities.id],
+    relationName: "targetEntity",
   }),
 }));
 
