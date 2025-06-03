@@ -1,6 +1,7 @@
-import { users, inputs, queries, knowledgeGraph, type User, type InsertUser, type Input, type InsertInput, type Query, type InsertQuery, type KnowledgeGraph, type InsertKnowledgeGraph } from "@shared/schema";
+import { users, inputs, queries, knowledgeGraph, entities, relationships, type User, type InsertUser, type Input, type InsertInput, type Query, type InsertQuery, type KnowledgeGraph, type InsertKnowledgeGraph, type Entity, type InsertEntity, type Relationship, type InsertRelationship } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, ilike, or, and, sql, cosineDistance } from "drizzle-orm";
+import { generateEntityDescription, createEmbedding } from "./llm";
 
 export interface IStorage {
   // User operations
@@ -17,9 +18,14 @@ export interface IStorage {
   createQuery(query: InsertQuery): Promise<Query>;
   getUserQueries(userId: number, limit?: number): Promise<Query[]>;
   
-  // Knowledge Graph operations
+  // Knowledge Graph operations (legacy)
   createKnowledgeGraphEntry(entry: InsertKnowledgeGraph): Promise<KnowledgeGraph>;
   searchKnowledgeGraph(userId: number, entities: string[], relationshipEmbedding: number[]): Promise<string[]>;
+  
+  // GraphRAG operations
+  getOrCreateEntity(userId: number, entityName: string, username: string): Promise<Entity>;
+  createRelationship(relationship: InsertRelationship): Promise<Relationship>;
+  searchEntitiesByDescription(userId: number, queryEmbedding: number[]): Promise<Entity[]>;
   
   // Stats operations
   getUserStats(userId: number): Promise<{

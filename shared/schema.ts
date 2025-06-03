@@ -151,6 +151,16 @@ export const insertKnowledgeGraphSchema = createInsertSchema(knowledgeGraph).omi
   createdAt: true,
 });
 
+export const insertEntitySchema = createInsertSchema(entities).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRelationshipSchema = createInsertSchema(relationships).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -160,3 +170,7 @@ export type InsertQuery = z.infer<typeof insertQuerySchema>;
 export type Query = typeof queries.$inferSelect;
 export type InsertKnowledgeGraph = z.infer<typeof insertKnowledgeGraphSchema>;
 export type KnowledgeGraph = typeof knowledgeGraph.$inferSelect;
+export type InsertEntity = z.infer<typeof insertEntitySchema>;
+export type Entity = typeof entities.$inferSelect;
+export type InsertRelationship = z.infer<typeof insertRelationshipSchema>;
+export type Relationship = typeof relationships.$inferSelect;

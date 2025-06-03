@@ -116,6 +116,61 @@ export async function createEmbedding(text: string): Promise<number[]> {
   }
 }
 
+export async function generateEntityDescription(
+  entityName: string,
+  username: string,
+): Promise<string> {
+  const prompt = `Generate a concise, informative description for the entity "${entityName}" in the context of user "${username}"'s personal knowledge base.
+
+Rules:
+1. Keep it factual and descriptive
+2. Maximum 2-3 sentences
+3. Focus on what this entity represents in the user's context
+4. Don't make assumptions beyond what the entity name suggests
+5. Return only the description text, no JSON
+
+Examples:
+Entity: "Thomas Rhett"
+Description: "A popular country music artist and singer-songwriter known for hits like 'Die From A Broken Heart' and 'Look What God Gave Her'."
+
+Entity: "sam-test1's girlfriend"
+Description: "The romantic partner of user sam-test1, referenced in their personal knowledge base."
+
+Entity: "Jake Owen"
+Description: "A country music artist and singer known for songs like 'Barefoot Blue Jean Night' and 'American Country Love Song'."
+
+Now generate a description for: "${entityName}"`;
+
+  try {
+    console.log(`📋 Generating description for entity: ${entityName}`);
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert at generating concise, factual descriptions for entities in a personal knowledge base.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.3,
+      max_tokens: 150,
+    });
+
+    const description = response.choices[0].message.content?.trim();
+    if (!description) throw new Error("No description generated");
+
+    console.log(`✅ Generated description: ${description}`);
+    return description;
+  } catch (error) {
+    console.error("❌ Error generating entity description:", error);
+    throw new Error("Failed to generate entity description");
+  }
+}
+
 export async function parseQueryToEntityRelationship(
   query: string,
   username: string,
