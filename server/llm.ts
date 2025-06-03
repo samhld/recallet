@@ -1,7 +1,9 @@
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OpenAI_Sam_D || process.env.OPENAI_API_KEY });
+// Using GPT-4.1-nano - the fastest and most cost-effective model from OpenAI's new GPT-4.1 series
+const openai = new OpenAI({
+  apiKey: process.env.OpenAI_Sam_D || process.env.OPENAI_API_KEY,
+});
 
 export interface EntityRelationship {
   sourceEntity: string;
@@ -11,7 +13,7 @@ export interface EntityRelationship {
 
 export async function parseInputToEntityRelationships(
   input: string,
-  username: string
+  username: string,
 ): Promise<EntityRelationship[]> {
   const prompt = `Parse the following input into entity-relationship triples. The user who wrote this input is "${username}".
 
@@ -45,16 +47,17 @@ Now parse this input: "${input}"`;
     console.log("💭 Prompt sent to LLM:", prompt);
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4-1-nano",
       messages: [
         {
           role: "system",
-          content: "You are an expert at parsing text into entity-relationship triples. Always return valid JSON arrays only, no other text."
+          content:
+            "You are an expert at parsing text into entity-relationship triples. Always return valid JSON arrays only, no other text.",
         },
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       response_format: { type: "json_object" },
       temperature: 0,
@@ -62,28 +65,31 @@ Now parse this input: "${input}"`;
 
     const content = response.choices[0].message.content;
     console.log("🤖 Raw LLM response:", content);
-    
+
     if (!content) throw new Error("No response from OpenAI");
-    
+
     const parsed = JSON.parse(content);
     let relationships = parsed.relationships || parsed;
-    
+
     // If the response is a single object, wrap it in an array
     if (!Array.isArray(relationships)) {
       relationships = [relationships];
     }
-    
+
     // Replace "<user>" with actual username in all relationships
     relationships = relationships.map((rel: any) => ({
       ...rel,
       sourceEntity: rel.sourceEntity.replace(/<user>/g, username),
-      targetEntity: rel.targetEntity.replace(/<user>/g, username)
+      targetEntity: rel.targetEntity.replace(/<user>/g, username),
     }));
-    
-    console.log("📊 Parsed relationships:", JSON.stringify(relationships, null, 2));
+
+    console.log(
+      "📊 Parsed relationships:",
+      JSON.stringify(relationships, null, 2),
+    );
     console.log("🔢 Number of relationships extracted:", relationships.length);
     console.log("🔍 === LLM INPUT PARSING END ===\n");
-    
+
     return relationships;
   } catch (error) {
     console.error("❌ Error parsing input with LLM:", error);
@@ -94,7 +100,7 @@ Now parse this input: "${input}"`;
 export async function createEmbedding(text: string): Promise<number[]> {
   try {
     console.log("🔗 Creating embedding for text:", text);
-    
+
     const response = await openai.embeddings.create({
       model: "text-embedding-3-small",
       input: text,
@@ -102,7 +108,7 @@ export async function createEmbedding(text: string): Promise<number[]> {
 
     const embedding = response.data[0].embedding;
     console.log("✅ Embedding created, dimensions:", embedding.length);
-    
+
     return embedding;
   } catch (error) {
     console.error("❌ Error creating embedding:", error);
@@ -112,7 +118,7 @@ export async function createEmbedding(text: string): Promise<number[]> {
 
 export async function parseQueryToEntityRelationship(
   query: string,
-  username: string
+  username: string,
 ): Promise<{ entities: string[]; relationship: string }> {
   const prompt = `Parse this query to extract the main entities and relationship being asked about.
 
@@ -142,16 +148,17 @@ Now parse this query: "${query}"`;
     console.log("💭 Prompt sent to LLM:", prompt);
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4-1-nano",
       messages: [
         {
           role: "system",
-          content: "You are an expert at parsing queries into entities and relationships. Always return valid JSON only, no other text."
+          content:
+            "You are an expert at parsing queries into entities and relationships. Always return valid JSON only, no other text.",
         },
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       response_format: { type: "json_object" },
       temperature: 0,
@@ -159,21 +166,21 @@ Now parse this query: "${query}"`;
 
     const content = response.choices[0].message.content;
     console.log("🤖 Raw LLM response:", content);
-    
+
     if (!content) throw new Error("No response from OpenAI");
-    
+
     const parsed = JSON.parse(content);
-    
+
     // Replace "<user>" with actual username in entities
     if (parsed.entities) {
-      parsed.entities = parsed.entities.map((entity: string) => 
-        entity.replace(/<user>/g, username)
+      parsed.entities = parsed.entities.map((entity: string) =>
+        entity.replace(/<user>/g, username),
       );
     }
-    
+
     console.log("📊 Parsed query structure:", JSON.stringify(parsed, null, 2));
     console.log("🔍 === LLM QUERY PARSING END ===\n");
-    
+
     return parsed;
   } catch (error) {
     console.error("❌ Error parsing query with LLM:", error);
