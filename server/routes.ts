@@ -138,9 +138,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      // Parse input with LLM to extract entity-relationships
+      // Parse input with LLM to extract entity-relationships using GraphRAG
       try {
-        console.log("\n🚀 === PROCESSING INPUT FOR KNOWLEDGE GRAPH ===");
+        console.log("\n🚀 === PROCESSING INPUT FOR GRAPHRAG ===");
         console.log("📝 Input content:", inputData.content);
         console.log("👤 User:", user.username);
         
@@ -149,28 +149,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user.username
         );
         
-        console.log("🔗 Creating knowledge graph entries...");
+        console.log("🔗 Creating GraphRAG entities and relationships...");
         
-        // Create knowledge graph entries for each relationship
+        // Process each relationship using GraphRAG approach
         for (const er of entityRelationships) {
           console.log(`\n📊 Processing relationship: ${er.sourceEntity} -> ${er.relationship} -> ${er.targetEntity}`);
           
+          // Get or create source entity (with description generation only if new)
+          const sourceEntity = await storage.getOrCreateEntity(
+            req.session.userId!,
+            er.sourceEntity,
+            user.username
+          );
+          
+          // Get or create target entity (with description generation only if new)
+          const targetEntity = await storage.getOrCreateEntity(
+            req.session.userId!,
+            er.targetEntity,
+            user.username
+          );
+          
+          // Create relationship embedding
           const relationshipEmbedding = await createEmbedding(er.relationship);
           
-          const kgEntry = await storage.createKnowledgeGraphEntry({
+          // Create the relationship between entities
+          const relationship = await storage.createRelationship({
             userId: req.session.userId!,
-            sourceEntity: er.sourceEntity,
+            sourceEntityId: sourceEntity.id,
+            targetEntityId: targetEntity.id,
             relationship: er.relationship,
             relationshipVec: relationshipEmbedding,
-            targetEntity: er.targetEntity,
             originalInput: inputData.content,
           });
           
-          console.log("✅ Knowledge graph entry created with ID:", kgEntry.id);
+          console.log("✅ Relationship created with ID:", relationship.id);
         }
         
-        console.log(`\n🎉 Successfully parsed ${entityRelationships.length} relationships from input`);
-        console.log("🚀 === KNOWLEDGE GRAPH PROCESSING COMPLETE ===\n");
+        console.log(`\n🎉 Successfully processed ${entityRelationships.length} relationships using GraphRAG`);
+        console.log("🚀 === GRAPHRAG PROCESSING COMPLETE ===\n");
       } catch (llmError) {
         console.error("❌ LLM parsing failed, but input was saved:", llmError);
         // Continue even if LLM parsing fails

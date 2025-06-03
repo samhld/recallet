@@ -204,6 +204,102 @@ export class DatabaseStorage implements IStorage {
       thisWeekInputs: thisWeekInputsResult.count || 0,
     };
   }
+
+  async getOrCreateEntity(userId: number, entityName: string, username: string): Promise<Entity> {
+    try {
+      // First, check if entity already exists
+      const [existingEntity] = await db
+        .select()
+        .from(entities)
+        .where(
+          and(
+            eq(entities.userId, userId),
+            eq(entities.name, entityName)
+          )
+        );
+
+      if (existingEntity) {
+        console.log(`📌 Entity "${entityName}" already exists, skipping description generation`);
+        return existingEntity;
+      }
+
+      console.log(`✨ Creating new entity "${entityName}" for user ${username}`);
+      
+      // Generate description and embedding for new entity
+      const description = await generateEntityDescription(entityName, username);
+      const descriptionVec = await createEmbedding(description);
+
+      // Create the new entity
+      const [newEntity] = await db
+        .insert(entities)
+        .values({
+          userId,
+          name: entityName,
+          description,
+          descriptionVec,
+        })
+        .returning();
+
+      console.log(`✅ Created entity "${entityName}" with ID ${newEntity.id}`);
+      return newEntity;
+
+    } catch (error: any) {
+      // Handle unique constraint violation (in case of race condition)
+      if (error.code === '23505') {
+        console.log(`⚠️ Unique constraint violation for entity "${entityName}", fetching existing`);
+        const [existingEntity] = await db
+          .select()
+          .from(entities)
+          .where(
+            and(
+              eq(entities.userId, userId),
+              eq(entities.name, entityName)
+            )
+          );
+        return existingEntity;
+      }
+      throw error;
+    }
+  }
+
+  async createRelationship(relationship: InsertRelationship): Promise<Relationship> {
+    try {
+      const [newRelationship] = await db
+        .insert(relationships)
+        .values(relationship)
+        .returning();
+      return newRelationship;
+    } catch (error: any) {
+      // Handle unique constraint violation gracefully
+      if (error.code === '23505') {
+        console.log(`⚠️ Duplicate relationship detected, fetching existing`);
+        const [existing] = await db
+          .select()
+          .from(relationships)
+          .where(
+            and(
+              eq(relationships.userId, relationship.userId),
+              eq(relationships.sourceEntityId, relationship.sourceEntityId),
+              eq(relationships.relationship, relationship.relationship),
+              eq(relationships.targetEntityId, relationship.targetEntityId)
+            )
+          );
+        return existing;
+      }
+      throw error;
+    }
+  }
+
+  async searchEntitiesByDescription(userId: number, queryEmbedding: number[]): Promise<Entity[]> {
+    const results = await db
+      .select()
+      .from(entities)
+      .where(eq(entities.userId, userId))
+      .orderBy(cosineDistance(entities.descriptionVec, queryEmbedding))
+      .limit(10);
+
+    return results.filter(entity => entity.descriptionVec); // Only return entities with embeddings
+  }
 }
 
 export const storage = new DatabaseStorage();
