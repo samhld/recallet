@@ -110,29 +110,25 @@ export async function resolveEntityAliases(
   console.log("🎯 Entity to resolve:", entityName);
   console.log("📚 Existing entities:", existingEntities.map(e => e.name));
 
-  const prompt = `IMPORTANT: Analyze if "${entityName}" refers to the same person as any existing entity. Look for alias relationships carefully.
+  const prompt = `Analyze if "${entityName}" refers to the same person as any existing entity.
 
 Context: User is "${username}"
 
 Existing entities and their descriptions:
 ${existingEntities.map(e => `- ${e.name}: ${e.description}`).join('\n')}
 
-CRITICAL RULES:
-1. If "${entityName}" is a relationship descriptor (like "my fiancee", "my girlfriend", "my husband") AND there's a person entity that could be that relationship, merge them
-2. If "${entityName}" is a proper name that could refer to an existing relationship entity, merge them
-3. Consider context clues: if input says "X is my Y" then X and "my Y" are the same person
-4. Return the EXISTING entity name when merging, not the new one
-5. Provide updated description that includes both names/relationships
+Rules:
+1. If "${entityName}" clearly refers to an existing entity, return that entity name
+2. If it's a new entity, return the original name
+3. If it's an alias, provide an updated description that combines both names
+4. Consider relationships like "my fiancee", "my girlfriend", proper names, etc.
 
-MERGE EXAMPLES:
-- If "Marissa" exists and new entity is "my fiancee" → {"resolvedEntity": "Marissa", "updatedDescription": "Marissa, who is sam-test1's fiancee...", "isAlias": true}
-- If "my girlfriend" exists and new entity is "Sarah" → {"resolvedEntity": "my girlfriend", "updatedDescription": "Sarah, who is sam-test1's girlfriend...", "isAlias": true}
+Examples:
+- If "Marissa" exists and input mentions "my fiancee" → could be same person
+- If "John" exists and input mentions "my brother" → could be same person
+- If "Sarah" and "my girlfriend" both exist → might be same person
 
-NO MERGE EXAMPLES:
-- Clearly different people like "Jake Owen" vs "Thomas Rhett"
-- Different relationship roles that couldn't be the same person
-
-Return JSON: {"resolvedEntity": "existing_entity_name", "updatedDescription": "combined description", "isAlias": true/false}`;
+Return JSON: {"resolvedEntity": "name", "updatedDescription": "description", "isAlias": true/false}`;
 
   console.log("💭 Prompt sent to LLM:", prompt);
 

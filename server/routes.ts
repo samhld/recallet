@@ -151,74 +151,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log("🔗 Creating GraphRAG entities and relationships...");
         
-        // Get existing entities for alias resolution
+        // Get existing entities for context enhancement
         const existingEntities = await storage.getAllUserEntities(req.session.userId!);
         
-        // Process each relationship using GraphRAG approach with entity resolution
+        // Process each relationship using GraphRAG approach
         for (const er of entityRelationships) {
           console.log(`\n📊 Processing relationship: ${er.sourceEntity} -> ${er.relationship} -> ${er.targetEntity}`);
           
-          // Special handling for identity statements like "X is my Y"
-          let sourceResolution, targetResolution;
+          // Check if source entity exists
+          const sourceExists = existingEntities.find(e => e.name === er.sourceEntity);
           
-          if (er.relationship === 'is' || er.relationship === 'is my' || er.relationship.includes('is')) {
-            // For identity statements, resolve both entities considering they might be the same person
-            console.log(`🔄 Identity statement detected: ${er.sourceEntity} ${er.relationship} ${er.targetEntity}`);
-            
-            // Check if either entity exists and could be an alias for the other
-            const sourceExists = existingEntities.find(e => e.name === er.sourceEntity);
-            const targetExists = existingEntities.find(e => e.name === er.targetEntity);
-            
-            if (sourceExists && !targetExists) {
-              // Source exists, target is new - merge target into source
-              sourceResolution = { resolvedEntity: er.sourceEntity, isAlias: false };
-              targetResolution = { 
-                resolvedEntity: er.sourceEntity, 
-                updatedDescription: `${er.sourceEntity}, who is ${er.targetEntity}. ${sourceExists.description}`,
-                isAlias: true 
-              };
-            } else if (!sourceExists && targetExists) {
-              // Target exists, source is new - merge source into target  
-              sourceResolution = { 
-                resolvedEntity: er.targetEntity, 
-                updatedDescription: `${er.sourceEntity}, who is ${er.targetEntity}. ${targetExists.description}`,
-                isAlias: true 
-              };
-              targetResolution = { resolvedEntity: er.targetEntity, isAlias: false };
-            } else {
-              // Use normal resolution
-              sourceResolution = await resolveEntityAliases(er.sourceEntity, existingEntities, user.username);
-              targetResolution = await resolveEntityAliases(er.targetEntity, existingEntities, user.username);
-            }
-          } else {
-            // Normal relationship resolution
-            sourceResolution = await resolveEntityAliases(er.sourceEntity, existingEntities, user.username);
-            targetResolution = await resolveEntityAliases(er.targetEntity, existingEntities, user.username);
-          }
-          
-          console.log("🔍 Source resolution:", sourceResolution);
-          console.log("🔍 Target resolution:", targetResolution);
-          
-          // Get or create entities using resolved names
+          // Get or create entities using original names
           const sourceEntity = await storage.getOrCreateEntity(
             req.session.userId!,
-            sourceResolution.resolvedEntity,
+            er.sourceEntity,
             user.username
           );
           
           const targetEntity = await storage.getOrCreateEntity(
             req.session.userId!,
-            targetResolution.resolvedEntity,
+            er.targetEntity,
             user.username
           );
           
-          // Update descriptions if aliases were resolved
-          if (sourceResolution.isAlias && sourceResolution.updatedDescription) {
-            await storage.updateEntityDescription(req.session.userId!, sourceResolution.resolvedEntity, sourceResolution.updatedDescription);
+          // If source entity existed, enhance its description with relationship context
+          if (sourceExists) {
+            console.log(`🔄 Enhancing existing entity "${er.sourceEntity}" with relationship context: ${er.relationship} ${er.targetEntity}`);
+            
+            // Create enhanced description that includes the new relationship context
+            const enhancedDescription = `${sourceExists.description || er.sourceEntity}. ${er.sourceEntity} ${er.relationship} ${er.targetEntity}.`;
+            
+            console.log(`📝 Enhanced description: ${enhancedDescription}`);
+            
+            // Update the source entity's description and re-embed it
+            await storage.updateEntityDescription(req.session.userId!, er.sourceEntity, enhancedDescription);
           }
-          if (targetResolution.isAlias && targetResolution.updatedDescription) {
-            await storage.updateEntityDescription(req.session.userId!, targetResolution.resolvedEntity, targetResolution.updatedDescription);
-          }
+
           
           // Create relationship embedding
           const relationshipEmbedding = await createEmbedding(er.relationship);
