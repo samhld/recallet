@@ -120,151 +120,83 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createKnowledgeGraphEntry(entry: InsertKnowledgeGraph): Promise<KnowledgeGraph> {
-    try {
-      const [graphEntry] = await db
-        .insert(knowledgeGraph)
-        .values(entry)
-        .returning();
-      return graphEntry;
-    } catch (error: any) {
-      // If it's a unique constraint violation, check if the entry already exists
-      if (error.code === '23505') { // PostgreSQL unique constraint violation code
-        console.log(`⚠️ Duplicate knowledge graph entry detected, fetching existing: ${entry.sourceEntity} -> ${entry.relationship} -> ${entry.targetEntity}`);
-        const [existing] = await db
-          .select()
-          .from(knowledgeGraph)
-          .where(
-            and(
-              eq(knowledgeGraph.userId, entry.userId),
-              eq(knowledgeGraph.sourceEntity, entry.sourceEntity),
-              eq(knowledgeGraph.relationship, entry.relationship),
-              eq(knowledgeGraph.targetEntity, entry.targetEntity)
-            )
-          );
-        return existing;
-      }
-      throw error;
-    }
+    // Legacy method - no longer used, entities and relationships tables are used instead
+    throw new Error("createKnowledgeGraphEntry is deprecated - use entity/relationship methods instead");
   }
 
   async searchKnowledgeGraph(userId: number, entities: string[], relationshipEmbedding: number[]): Promise<{
     originalInputs: string[];
     targetEntities: string[];
   }> {
-    console.log("🔍 Knowledge Graph Search Debug:");
+    console.log("🔍 Entity + Relationship Combined Search:");
     console.log("📊 User ID:", userId);
     console.log("🎯 Entities to search for:", entities);
-    console.log("🔗 Searching on ENTITY NAMES in source_entity and target_entity columns");
+    console.log("🔗 Must match BOTH entity AND relationship similarity");
     
-    // Search both legacy knowledge_graph table and new relationships table
-    let legacyResults: any[] = [];
-    let newResults: any[] = [];
-    
-    if (entities.length > 0) {
-      // Search legacy knowledge_graph table
-      legacyResults = await db
-        .select({
-          sourceEntity: knowledgeGraph.sourceEntity,
-          targetEntity: knowledgeGraph.targetEntity,
-          relationship: knowledgeGraph.relationship,
-          originalInput: knowledgeGraph.originalInput,
-          distance: cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding)
-        })
-        .from(knowledgeGraph)
-        .where(
-          and(
-            eq(knowledgeGraph.userId, userId),
-            or(
-              ...entities.map(entity => eq(knowledgeGraph.sourceEntity, entity)),
-              ...entities.map(entity => eq(knowledgeGraph.targetEntity, entity))
-            )
-          )
-        )
-        .orderBy(cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding))
-        .limit(10);
-
-      // Search new relationships table with entity joins
-      const embeddingVector = `[${relationshipEmbedding.join(',')}]`;
-      const entityList = entities.map(e => `'${e}'`).join(',');
-      
-      // Use a simpler approach with direct parameter binding
-      let entityQuery = '';
-      if (entities.length === 1) {
-        entityQuery = `AND (e1.name = '${entities[0]}' OR e2.name = '${entities[0]}')`;
-      } else {
-        const conditions = entities.map(entity => `e1.name = '${entity}' OR e2.name = '${entity}'`).join(' OR ');
-        entityQuery = `AND (${conditions})`;
-      }
-      
-      const queryResult = await db.execute(sql`
-        SELECT 
-          e1.name as source_entity,
-          e2.name as target_entity,
-          r.relationship,
-          r.original_input,
-          cosine_distance(r.relationship_vec, ${embeddingVector}::vector) as distance
-        FROM relationships r
-        INNER JOIN entities e1 ON r.source_entity_id = e1.id
-        INNER JOIN entities e2 ON r.target_entity_id = e2.id
-        WHERE r.user_id = ${userId} ${sql.raw(entityQuery)}
-          AND cosine_distance(r.relationship_vec, ${embeddingVector}::vector) < 0.7
-        ORDER BY cosine_distance(r.relationship_vec, ${embeddingVector}::vector)
-        LIMIT 5
-      `);
-      
-      console.log("🔍 Raw query result:", queryResult.rows.map(row => ({
-        source_entity: row.source_entity,
-        target_entity: row.target_entity,
-        relationship: row.relationship,
-        distance: row.distance,
-        original_input: row.original_input
-      })));
-      
-      newResults = queryResult.rows.map(row => ({
-        sourceEntity: row.source_entity as string,
-        targetEntity: row.target_entity as string,
-        relationship: row.relationship as string,
-        originalInput: row.original_input as string,
-        distance: row.distance as number
-      }));
-    } else {
-      // If no entities specified, search both tables by relationship similarity only
-      legacyResults = await db
-        .select({
-          sourceEntity: knowledgeGraph.sourceEntity,
-          targetEntity: knowledgeGraph.targetEntity,
-          relationship: knowledgeGraph.relationship,
-          originalInput: knowledgeGraph.originalInput,
-          distance: cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding)
-        })
-        .from(knowledgeGraph)
-        .where(eq(knowledgeGraph.userId, userId))
-        .orderBy(cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding))
-        .limit(10);
-
-      newResults = [];
+    if (entities.length === 0) {
+      return { originalInputs: [], targetEntities: [] };
     }
 
-    // Combine results from both tables
-    const allResults = [...legacyResults, ...newResults];
+    // Search relationships table where entity matches AND relationship is similar
+    const embeddingVector = `[${relationshipEmbedding.join(',')}]`;
     
-    console.log("📋 Legacy results:", legacyResults.length);
-    console.log("📋 New results:", newResults.length);
-    console.log("📋 Combined results:", allResults);
+    let entityQuery = '';
+    if (entities.length === 1) {
+      entityQuery = `AND (e1.name = '${entities[0]}' OR e2.name = '${entities[0]}')`;
+    } else {
+      const conditions = entities.map(entity => `e1.name = '${entity}' OR e2.name = '${entity}'`).join(' OR ');
+      entityQuery = `AND (${conditions})`;
+    }
+    
+    const queryResult = await db.execute(sql`
+      SELECT 
+        e1.name as source_entity,
+        e2.name as target_entity,
+        r.relationship,
+        r.original_input,
+        cosine_distance(r.relationship_vec, ${embeddingVector}::vector) as distance
+      FROM relationships r
+      INNER JOIN entities e1 ON r.source_entity_id = e1.id
+      INNER JOIN entities e2 ON r.target_entity_id = e2.id
+      WHERE r.user_id = ${userId} ${sql.raw(entityQuery)}
+        AND cosine_distance(r.relationship_vec, ${embeddingVector}::vector) < 0.7
+      ORDER BY cosine_distance(r.relationship_vec, ${embeddingVector}::vector)
+      LIMIT 5
+    `);
+    
+    console.log("🔍 Combined search results:", queryResult.rows.map(row => ({
+      source_entity: row.source_entity,
+      target_entity: row.target_entity,
+      relationship: row.relationship,
+      distance: row.distance,
+      original_input: row.original_input
+    })));
+    
+    const results = queryResult.rows.map(row => ({
+      sourceEntity: row.source_entity as string,
+      targetEntity: row.target_entity as string,
+      relationship: row.relationship as string,
+      originalInput: row.original_input as string,
+      distance: row.distance as number
+    }));
 
-    // Filter relevant results
-    const filteredResults = allResults.filter(result => (result.distance as number) < 0.7);
-    
-    // Extract original inputs and target entities
-    const originalInputs = filteredResults.map(result => result.originalInput);
-    const targetEntities = filteredResults
-      .map(result => result.targetEntity)
-      .filter((entity, index, arr) => arr.indexOf(entity) === index); // remove duplicates
-    
-    console.log("✅ Original inputs found:", originalInputs);
-    console.log("✅ Target entities found:", targetEntities);
-    
-    return { originalInputs, targetEntities };
+    const originalInputsSet = new Set<string>();
+    const targetEntitiesSet = new Set<string>();
+
+    for (const result of results) {
+      originalInputsSet.add(result.originalInput);
+      targetEntitiesSet.add(result.targetEntity);
+    }
+
+    const originalInputs = Array.from(originalInputsSet);
+    const targetEntities = Array.from(targetEntitiesSet);
+
+    console.log("✅ Combined search found:", originalInputs.length, "inputs and", targetEntities.length, "entities");
+
+    return {
+      originalInputs,
+      targetEntities,
+    };
   }
 
   async getUserStats(userId: number): Promise<{

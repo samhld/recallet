@@ -58,21 +58,7 @@ export const relationships = pgTable("relationships", {
   };
 });
 
-// Keep the old knowledge_graph table for now to avoid data loss
-export const knowledgeGraph = pgTable("knowledge_graph", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  sourceEntity: text("source_entity").notNull(),
-  relationship: text("relationship").notNull(),
-  relationshipVec: vector("relationship_vec", { dimensions: 1536 }),
-  targetEntity: text("target_entity").notNull(),
-  originalInput: text("original_input").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-}, (table) => {
-  return {
-    uniqueKnowledgeEntry: unique().on(table.userId, table.sourceEntity, table.relationship, table.targetEntity),
-  };
-});
+
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
@@ -80,7 +66,6 @@ export const usersRelations = relations(users, ({ many }) => ({
   queries: many(queries),
   entities: many(entities),
   relationships: many(relationships),
-  knowledgeGraph: many(knowledgeGraph),
 }));
 
 export const inputsRelations = relations(inputs, ({ one }) => ({
@@ -123,12 +108,7 @@ export const relationshipsRelations = relations(relationships, ({ one }) => ({
   }),
 }));
 
-export const knowledgeGraphRelations = relations(knowledgeGraph, ({ one }) => ({
-  user: one(users, {
-    fields: [knowledgeGraph.userId],
-    references: [users.id],
-  }),
-}));
+
 
 // Schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -146,10 +126,7 @@ export const insertQuerySchema = createInsertSchema(queries).omit({
   createdAt: true,
 });
 
-export const insertKnowledgeGraphSchema = createInsertSchema(knowledgeGraph).omit({
-  id: true,
-  createdAt: true,
-});
+
 
 export const insertEntitySchema = createInsertSchema(entities).omit({
   id: true,
@@ -168,8 +145,7 @@ export type InsertInput = z.infer<typeof insertInputSchema>;
 export type Input = typeof inputs.$inferSelect;
 export type InsertQuery = z.infer<typeof insertQuerySchema>;
 export type Query = typeof queries.$inferSelect;
-export type InsertKnowledgeGraph = z.infer<typeof insertKnowledgeGraphSchema>;
-export type KnowledgeGraph = typeof knowledgeGraph.$inferSelect;
+
 export type InsertEntity = z.infer<typeof insertEntitySchema>;
 export type Entity = typeof entities.$inferSelect;
 export type InsertRelationship = z.infer<typeof insertRelationshipSchema>;
