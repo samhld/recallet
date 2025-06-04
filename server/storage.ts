@@ -30,7 +30,7 @@ export interface IStorage {
   searchEntitiesByDescription(userId: number, queryEmbedding: number[]): Promise<Entity[]>;
   updateEntityContext(userId: number, entityName: string, additionalContext: string, username: string): Promise<Entity>;
   searchRelationshipsByEmbedding(userId: number, relationshipEmbedding: number[]): Promise<{
-    relationships: Relationship[];
+    relationships: (Relationship & { sourceEntityName: string; targetEntityName: string })[];
     targetEntities: string[];
   }>;
   
@@ -384,7 +384,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchRelationshipsByEmbedding(userId: number, relationshipEmbedding: number[]): Promise<{
-    relationships: Relationship[];
+    relationships: (Relationship & { sourceEntityName: string; targetEntityName: string })[];
     targetEntities: string[];
   }> {
     try {
@@ -419,7 +419,7 @@ export class DatabaseStorage implements IStorage {
         original_input: row.original_input
       })));
 
-      const relationships: Relationship[] = queryResult.rows.map(row => ({
+      const relationships = queryResult.rows.map(row => ({
         id: row.id as number,
         userId: row.user_id as number,
         sourceEntityId: row.source_entity_id as number,
@@ -428,6 +428,8 @@ export class DatabaseStorage implements IStorage {
         relationshipVec: row.relationship_vec as number[],
         originalInput: row.original_input as string,
         createdAt: row.created_at as Date,
+        sourceEntityName: row.source_entity_name as string,
+        targetEntityName: row.target_entity_name as string,
       }));
 
       const targetEntities = queryResult.rows.map(row => row.target_entity_name as string);
