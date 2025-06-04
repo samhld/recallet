@@ -151,41 +151,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log("🔗 Creating GraphRAG entities and relationships...");
         
-        // Get existing entities for context enhancement
-        const existingEntities = await storage.getAllUserEntities(req.session.userId!);
-        
         // Process each relationship using GraphRAG approach
         for (const er of entityRelationships) {
           console.log(`\n📊 Processing relationship: ${er.sourceEntity} -> ${er.relationship} -> ${er.targetEntity}`);
           
-          // Check if source entity exists
-          const sourceExists = existingEntities.find(e => e.name === er.sourceEntity);
-          
-          // Get or create entities using original names
+          // Get or create source entity (with description generation only if new)
           const sourceEntity = await storage.getOrCreateEntity(
             req.session.userId!,
             er.sourceEntity,
             user.username
           );
           
+          // Get or create target entity (with description generation only if new)
           const targetEntity = await storage.getOrCreateEntity(
             req.session.userId!,
             er.targetEntity,
             user.username
           );
-          
-          // If source entity existed, enhance its description with relationship context
-          if (sourceExists) {
-            console.log(`🔄 Enhancing existing entity "${er.sourceEntity}" with relationship context: ${er.relationship} ${er.targetEntity}`);
-            
-            // Create enhanced description that includes the new relationship context
-            const enhancedDescription = `${sourceExists.description || er.sourceEntity}. ${er.sourceEntity} ${er.relationship} ${er.targetEntity}.`;
-            
-            console.log(`📝 Enhanced description: ${enhancedDescription}`);
-            
-            // Update the source entity's description and re-embed it
-            await storage.updateEntityDescription(req.session.userId!, er.sourceEntity, enhancedDescription);
-          }
 
           
           // Create relationship embedding
