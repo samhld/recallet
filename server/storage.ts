@@ -29,6 +29,11 @@ export interface IStorage {
   getOrCreateEntity(userId: number, entityName: string, username: string): Promise<Entity>;
   createRelationship(relationship: InsertRelationship): Promise<Relationship>;
   searchEntitiesByDescription(userId: number, queryEmbedding: number[]): Promise<Entity[]>;
+  updateEntityContext(userId: number, entityName: string, additionalContext: string, username: string): Promise<Entity>;
+  searchRelationshipsByEmbedding(userId: number, relationshipEmbedding: number[]): Promise<{
+    relationships: Relationship[];
+    targetEntities: string[];
+  }>;
   
   // Stats operations
   getUserStats(userId: number): Promise<{
@@ -383,6 +388,113 @@ export class DatabaseStorage implements IStorage {
       .limit(10);
 
     return results.filter(entity => entity.descriptionVec); // Only return entities with embeddings
+  }
+
+  async updateEntityContext(userId: number, entityName: string, additionalContext: string, username: string): Promise<Entity> {
+    try {
+      // Get the existing entity
+      const [existingEntity] = await db
+        .select()
+        .from(entities)
+        .where(
+          and(
+            eq(entities.userId, userId),
+            eq(entities.name, entityName)
+          )
+        );
+
+      if (!existingEntity) {
+        throw new Error(`Entity "${entityName}" not found`);
+      }
+
+      // Append the additional context to the existing description
+      const updatedDescription = existingEntity.description 
+        ? `${existingEntity.description}\n\nAdditional context: ${additionalContext}`
+        : `Additional context: ${additionalContext}`;
+
+      console.log(`📝 Updating entity "${entityName}" with additional context`);
+      console.log(`🔄 Original description: ${existingEntity.description}`);
+      console.log(`➕ Additional context: ${additionalContext}`);
+      console.log(`📊 Updated description: ${updatedDescription}`);
+
+      // Create new embedding for the updated description
+      const updatedDescriptionVec = await createEmbedding(updatedDescription);
+
+      // Update the entity with new description and embedding
+      const [updatedEntity] = await db
+        .update(entities)
+        .set({
+          description: updatedDescription,
+          descriptionVec: updatedDescriptionVec,
+        })
+        .where(
+          and(
+            eq(entities.userId, userId),
+            eq(entities.name, entityName)
+          )
+        )
+        .returning();
+
+      console.log(`✅ Successfully updated entity "${entityName}"`);
+      return updatedEntity;
+
+    } catch (error) {
+      console.error(`❌ Error updating entity context for "${entityName}":`, error);
+      throw error;
+    }
+  }
+
+  async searchRelationshipsByEmbedding(userId: number, relationshipEmbedding: number[]): Promise<{
+    relationships: Relationship[];
+    targetEntities: string[];
+  }> {
+    try {
+      console.log("🔍 Searching relationships by embedding similarity");
+      
+      // Search relationships table by relationship embedding similarity
+      const embeddingVector = `[${relationshipEmbedding.join(',')}]`;
+      
+      const queryResult = await db.execute(sql`
+        SELECT 
+          r.*,
+          e1.name as source_entity_name,
+          e2.name as target_entity_name,
+          cosine_distance(r.relationship_vec, ${embeddingVector}::vector) as distance
+        FROM relationships r
+        INNER JOIN entities e1 ON r.source_entity_id = e1.id
+        INNER JOIN entities e2 ON r.target_entity_id = e2.id
+        WHERE r.user_id = ${userId}
+        ORDER BY cosine_distance(r.relationship_vec, ${embeddingVector}::vector)
+        LIMIT 10
+      `);
+
+      console.log("📊 Raw relationship search results:", queryResult.rows);
+
+      const relationships: Relationship[] = queryResult.rows.map(row => ({
+        id: row.id as number,
+        userId: row.user_id as number,
+        sourceEntityId: row.source_entity_id as number,
+        targetEntityId: row.target_entity_id as number,
+        relationship: row.relationship as string,
+        relationshipVec: row.relationship_vec as number[],
+        originalInput: row.original_input as string,
+        createdAt: row.created_at as Date,
+      }));
+
+      const targetEntities = queryResult.rows.map(row => row.target_entity_name as string);
+
+      console.log(`🎯 Found ${relationships.length} matching relationships`);
+      console.log(`📌 Target entities: ${targetEntities.join(', ')}`);
+
+      return {
+        relationships,
+        targetEntities,
+      };
+
+    } catch (error) {
+      console.error("❌ Error searching relationships by embedding:", error);
+      throw error;
+    }
   }
 }
 

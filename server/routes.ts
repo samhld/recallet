@@ -149,6 +149,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user.username
         );
         
+        // First, detect and update context for existing entities
+        await detectExistingEntitiesForContextUpdate(
+          entityRelationships,
+          req.session.userId!,
+          user.username,
+          inputData.content
+        );
+        
         console.log("🔗 Creating GraphRAG entities and relationships...");
         
         // Process each relationship using GraphRAG approach
@@ -256,14 +264,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create embedding for the relationship
       const relationshipEmbedding = await createEmbedding(parsed.relationship);
       
-      console.log("🔍 Searching knowledge graph...");
+      console.log("🔍 Searching knowledge graph and relationships...");
       
-      // Search knowledge graph
-      const searchResults = await storage.searchKnowledgeGraph(
-        req.session.userId!,
-        parsed.entities,
-        relationshipEmbedding
-      );
+      // Enhanced search: combine entity-based and relationship-based searching
+      let searchResults = { originalInputs: [], targetEntities: [] };
+      
+      // First, try entity-based search in knowledge graph
+      if (parsed.entities.length > 0) {
+        searchResults = await storage.searchKnowledgeGraph(
+          req.session.userId!,
+          parsed.entities,
+          relationshipEmbedding
+        );
+      }
+      
+      // If no results or no entities specified, search by relationship embeddings
+      if (searchResults.targetEntities.length === 0) {
+        console.log("🔄 No entity-based results found, searching by relationship embeddings...");
+        const relationshipResults = await storage.searchRelationshipsByEmbedding(
+          req.session.userId!,
+          relationshipEmbedding
+        );
+        
+        searchResults.targetEntities = relationshipResults.targetEntities;
+        searchResults.originalInputs = relationshipResults.relationships.map(r => r.originalInput);
+      }
       
       console.log("📊 Found target entities:", searchResults.targetEntities);
       console.log("📚 Found original inputs:", searchResults.originalInputs);

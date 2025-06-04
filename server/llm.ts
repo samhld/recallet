@@ -220,6 +220,66 @@ Based on this context, provide a direct, helpful answer to the question. If the 
   }
 }
 
+export async function detectExistingEntitiesForContextUpdate(
+  relationships: EntityRelationship[],
+  userId: number,
+  username: string,
+  originalInput: string
+): Promise<void> {
+  const { storage } = await import("./storage");
+  
+  console.log("\n🔍 === ENTITY CONTEXT UPDATE DETECTION START ===");
+  console.log("📝 Original input:", originalInput);
+  console.log("🎯 Relationships to check:", relationships);
+
+  for (const rel of relationships) {
+    try {
+      // Check if source entity exists
+      const sourceEntityExists = await checkEntityExists(userId, rel.sourceEntity);
+      if (sourceEntityExists) {
+        console.log(`✅ Source entity "${rel.sourceEntity}" exists, updating context`);
+        await storage.updateEntityContext(userId, rel.sourceEntity, originalInput, username);
+      }
+
+      // Check if target entity exists
+      const targetEntityExists = await checkEntityExists(userId, rel.targetEntity);
+      if (targetEntityExists) {
+        console.log(`✅ Target entity "${rel.targetEntity}" exists, updating context`);
+        await storage.updateEntityContext(userId, rel.targetEntity, originalInput, username);
+      }
+    } catch (error) {
+      console.error(`❌ Error updating entity context:`, error);
+      // Continue processing other entities even if one fails
+    }
+  }
+  
+  console.log("🔍 === ENTITY CONTEXT UPDATE DETECTION END ===\n");
+}
+
+async function checkEntityExists(userId: number, entityName: string): Promise<boolean> {
+  const { storage } = await import("./storage");
+  const { db } = await import("./db");
+  const { entities } = await import("@shared/schema");
+  const { eq, and } = await import("drizzle-orm");
+  
+  try {
+    const [existingEntity] = await db
+      .select()
+      .from(entities)
+      .where(
+        and(
+          eq(entities.userId, userId),
+          eq(entities.name, entityName)
+        )
+      );
+    
+    return !!existingEntity;
+  } catch (error) {
+    console.error(`Error checking if entity exists: ${entityName}`, error);
+    return false;
+  }
+}
+
 export async function parseQueryToEntityRelationship(
   query: string,
   username: string,
