@@ -158,9 +158,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const er of entityRelationships) {
           console.log(`\n📊 Processing relationship: ${er.sourceEntity} -> ${er.relationship} -> ${er.targetEntity}`);
           
-          // Resolve entity aliases
-          const sourceResolution = await resolveEntityAliases(er.sourceEntity, existingEntities, user.username);
-          const targetResolution = await resolveEntityAliases(er.targetEntity, existingEntities, user.username);
+          // Special handling for identity statements like "X is my Y"
+          let sourceResolution, targetResolution;
+          
+          if (er.relationship === 'is' || er.relationship === 'is my' || er.relationship.includes('is')) {
+            // For identity statements, resolve both entities considering they might be the same person
+            console.log(`🔄 Identity statement detected: ${er.sourceEntity} ${er.relationship} ${er.targetEntity}`);
+            
+            // Check if either entity exists and could be an alias for the other
+            const sourceExists = existingEntities.find(e => e.name === er.sourceEntity);
+            const targetExists = existingEntities.find(e => e.name === er.targetEntity);
+            
+            if (sourceExists && !targetExists) {
+              // Source exists, target is new - merge target into source
+              sourceResolution = { resolvedEntity: er.sourceEntity, isAlias: false };
+              targetResolution = { 
+                resolvedEntity: er.sourceEntity, 
+                updatedDescription: `${er.sourceEntity}, who is ${er.targetEntity}. ${sourceExists.description}`,
+                isAlias: true 
+              };
+            } else if (!sourceExists && targetExists) {
+              // Target exists, source is new - merge source into target  
+              sourceResolution = { 
+                resolvedEntity: er.targetEntity, 
+                updatedDescription: `${er.sourceEntity}, who is ${er.targetEntity}. ${targetExists.description}`,
+                isAlias: true 
+              };
+              targetResolution = { resolvedEntity: er.targetEntity, isAlias: false };
+            } else {
+              // Use normal resolution
+              sourceResolution = await resolveEntityAliases(er.sourceEntity, existingEntities, user.username);
+              targetResolution = await resolveEntityAliases(er.targetEntity, existingEntities, user.username);
+            }
+          } else {
+            // Normal relationship resolution
+            sourceResolution = await resolveEntityAliases(er.sourceEntity, existingEntities, user.username);
+            targetResolution = await resolveEntityAliases(er.targetEntity, existingEntities, user.username);
+          }
           
           console.log("🔍 Source resolution:", sourceResolution);
           console.log("🔍 Target resolution:", targetResolution);
