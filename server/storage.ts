@@ -20,7 +20,10 @@ export interface IStorage {
   
   // Knowledge Graph operations (legacy)
   createKnowledgeGraphEntry(entry: InsertKnowledgeGraph): Promise<KnowledgeGraph>;
-  searchKnowledgeGraph(userId: number, entities: string[], relationshipEmbedding: number[]): Promise<string[]>;
+  searchKnowledgeGraph(userId: number, entities: string[], relationshipEmbedding: number[]): Promise<{
+    originalInputs: string[];
+    targetEntities: string[];
+  }>;
   
   // GraphRAG operations
   getOrCreateEntity(userId: number, entityName: string, username: string): Promise<Entity>;
@@ -139,7 +142,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async searchKnowledgeGraph(userId: number, entities: string[], relationshipEmbedding: number[]): Promise<string[]> {
+  async searchKnowledgeGraph(userId: number, entities: string[], relationshipEmbedding: number[]): Promise<{
+    originalInputs: string[];
+    targetEntities: string[];
+  }> {
     console.log("🔍 Knowledge Graph Search Debug:");
     console.log("📊 User ID:", userId);
     console.log("🎯 Entities to search for:", entities);
@@ -150,6 +156,7 @@ export class DatabaseStorage implements IStorage {
         sourceEntity: knowledgeGraph.sourceEntity,
         targetEntity: knowledgeGraph.targetEntity,
         relationship: knowledgeGraph.relationship,
+        originalInput: knowledgeGraph.originalInput,
         distance: cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding)
       })
       .from(knowledgeGraph)
@@ -160,14 +167,19 @@ export class DatabaseStorage implements IStorage {
     console.log("📋 Raw database results:", results);
     console.log("🔢 Number of matches found:", results.length);
 
-    // Filter and return relevant target entities
-    const answers = results
-      .filter(result => result.distance < 0.5) // Only include reasonably similar relationships
+    // Filter relevant results
+    const filteredResults = results.filter(result => result.distance < 0.5);
+    
+    // Extract original inputs and target entities
+    const originalInputs = filteredResults.map(result => result.originalInput);
+    const targetEntities = filteredResults
       .map(result => result.targetEntity)
       .filter((entity, index, arr) => arr.indexOf(entity) === index); // remove duplicates
     
-    console.log("✅ Final answers after processing:", answers);
-    return answers;
+    console.log("✅ Original inputs found:", originalInputs);
+    console.log("✅ Target entities found:", targetEntities);
+    
+    return { originalInputs, targetEntities };
   }
 
   async getUserStats(userId: number): Promise<{

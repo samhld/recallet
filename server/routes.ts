@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
 import { insertUserSchema, insertInputSchema } from "@shared/schema";
-import { parseInputToEntityRelationships, createEmbedding, parseQueryToEntityRelationship } from "./llm";
+import { parseInputToEntityRelationships, createEmbedding, parseQueryToEntityRelationship, synthesizeAnswerFromContext } from "./llm";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 
@@ -259,14 +259,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("🔍 Searching knowledge graph...");
       
       // Search knowledge graph
-      const answers = await storage.searchKnowledgeGraph(
+      const searchResults = await storage.searchKnowledgeGraph(
         req.session.userId!,
         parsed.entities,
         relationshipEmbedding
       );
       
-      console.log("📊 Found answers:", answers);
-      console.log("🔢 Number of answers:", answers.length);
+      console.log("📊 Found target entities:", searchResults.targetEntities);
+      console.log("📚 Found original inputs:", searchResults.originalInputs);
+      
+      // Synthesize final answer using LLM with original context
+      const synthesizedAnswer = await synthesizeAnswerFromContext(query, searchResults.originalInputs);
+      
+      console.log("🎯 Final synthesized answer:", synthesizedAnswer);
       
       // Generate the PostgreSQL query that was executed for debugging
       const postgresQuery = `SELECT 
@@ -283,7 +288,7 @@ LIMIT 10;`;
       await storage.createQuery({
         userId: req.session.userId!,
         query,
-        resultCount: answers.length,
+        resultCount: searchResults.targetEntities.length,
         entities: parsed.entities,
         relationship: parsed.relationship,
         postgresQuery,
@@ -294,7 +299,9 @@ LIMIT 10;`;
 
       res.json({ 
         query: parsed,
-        answers,
+        answers: [synthesizedAnswer], // Single synthesized answer
+        rawAnswers: searchResults.targetEntities, // Raw target entities for debugging
+        originalInputs: searchResults.originalInputs, // Context used
         entities: parsed.entities,
         relationship: parsed.relationship
       });

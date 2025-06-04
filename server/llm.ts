@@ -171,6 +171,55 @@ Now generate a description for: "${entityName}"`;
   }
 }
 
+export async function synthesizeAnswerFromContext(
+  query: string,
+  originalInputs: string[]
+): Promise<string> {
+  if (originalInputs.length === 0) {
+    return "No relevant information found in your knowledge base.";
+  }
+
+  const prompt = `Question: "${query}"
+
+Context from knowledge base:
+${originalInputs.map((input, index) => `${index + 1}. "${input}"`).join('\n')}
+
+Based on this context, provide a direct, helpful answer to the question. If the context contains comparative information (like "more than", "less than", "most", "favorite"), use that to give a precise answer. Keep your response concise and natural.`;
+
+  try {
+    console.log("🧠 === LLM ANSWER SYNTHESIS START ===");
+    console.log("❓ Question:", query);
+    console.log("📚 Context inputs:", originalInputs);
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert at analyzing personal knowledge and providing direct, helpful answers based on context. Always use the provided context to give accurate, specific responses."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 200
+    });
+
+    const answer = response.choices[0].message.content?.trim();
+    if (!answer) throw new Error("No answer generated");
+
+    console.log("🎯 Synthesized answer:", answer);
+    console.log("🧠 === LLM ANSWER SYNTHESIS END ===");
+
+    return answer;
+  } catch (error) {
+    console.error("❌ Error synthesizing answer:", error);
+    return "I couldn't generate an answer based on the available context.";
+  }
+}
+
 export async function parseQueryToEntityRelationship(
   query: string,
   username: string,
