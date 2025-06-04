@@ -154,6 +154,7 @@ export class DatabaseStorage implements IStorage {
     console.log("🔍 Knowledge Graph Search Debug:");
     console.log("📊 User ID:", userId);
     console.log("🎯 Entities to search for:", entities);
+    console.log("🔗 Searching on ENTITY NAMES in source_entity and target_entity columns");
     
     // Search both legacy knowledge_graph table and new relationships table
     let legacyResults: any[] = [];
@@ -449,10 +450,13 @@ export class DatabaseStorage implements IStorage {
     targetEntities: string[];
   }> {
     try {
-      console.log("🔍 Searching relationships by embedding similarity");
+      console.log("🔍 Searching RELATIONSHIP EMBEDDINGS in relationship_vec column");
+      console.log("🎯 Searching for relationships similar to the query relationship");
       
       // Search relationships table by relationship embedding similarity
       const embeddingVector = `[${relationshipEmbedding.join(',')}]`;
+      
+      console.log("📊 SQL Query: Searching relationship_vec column with cosine_distance for similarity");
       
       const queryResult = await db.execute(sql`
         SELECT 
@@ -483,8 +487,8 @@ export class DatabaseStorage implements IStorage {
 
       const targetEntities = queryResult.rows.map(row => row.target_entity_name as string);
 
-      console.log(`🎯 Found ${relationships.length} matching relationships`);
-      console.log(`📌 Target entities: ${targetEntities.join(', ')}`);
+      console.log(`🎯 Found ${relationships.length} matching relationships by embedding similarity`);
+      console.log(`📌 Target entities from relationship search: ${targetEntities.join(', ')}`);
 
       return {
         relationships,

@@ -278,8 +278,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       
-      // If no results or no entities specified, search by relationship embeddings
-      if (searchResults.targetEntities.length === 0) {
+      // If no results or no entities specified, OR for testing - search by relationship embeddings
+      if (searchResults.targetEntities.length === 0 || parsed.entities.length === 0) {
         console.log("🔄 No entity-based results found, searching by relationship embeddings...");
         const relationshipResults = await storage.searchRelationshipsByEmbedding(
           req.session.userId!,
@@ -288,6 +288,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         searchResults.targetEntities = relationshipResults.targetEntities;
         searchResults.originalInputs = relationshipResults.relationships.map(r => r.originalInput);
+        
+        console.log("🎯 Relationship search completed:");
+        console.log("📌 Found target entities:", searchResults.targetEntities);
+        console.log("📚 Found original inputs:", searchResults.originalInputs);
+      } else {
+        console.log("✅ Entity-based search found results, skipping relationship search");
       }
       
       console.log("📊 Found target entities:", searchResults.targetEntities);

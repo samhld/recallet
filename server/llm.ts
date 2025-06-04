@@ -44,7 +44,6 @@ Now parse this input: "${input}"`;
     console.log("\n🔍 === LLM INPUT PARSING START ===");
     console.log("📝 Input text:", input);
     console.log("👤 Username:", username);
-    console.log("💭 Prompt sent to LLM:", prompt);
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -234,18 +233,21 @@ export async function detectExistingEntitiesForContextUpdate(
 
   for (const rel of relationships) {
     try {
+      // Create structured context from the relationship
+      const relationshipContext = `${rel.sourceEntity} ${rel.relationship} ${rel.targetEntity}`;
+      
       // Check if source entity exists
       const sourceEntityExists = await checkEntityExists(userId, rel.sourceEntity);
       if (sourceEntityExists) {
-        console.log(`✅ Source entity "${rel.sourceEntity}" exists, updating context`);
-        await storage.updateEntityContext(userId, rel.sourceEntity, originalInput, username);
+        console.log(`✅ Source entity "${rel.sourceEntity}" exists, updating context with: ${relationshipContext}`);
+        await storage.updateEntityContext(userId, rel.sourceEntity, relationshipContext, username);
       }
 
       // Check if target entity exists
       const targetEntityExists = await checkEntityExists(userId, rel.targetEntity);
       if (targetEntityExists) {
-        console.log(`✅ Target entity "${rel.targetEntity}" exists, updating context`);
-        await storage.updateEntityContext(userId, rel.targetEntity, originalInput, username);
+        console.log(`✅ Target entity "${rel.targetEntity}" exists, updating context with: ${relationshipContext}`);
+        await storage.updateEntityContext(userId, rel.targetEntity, relationshipContext, username);
       }
     } catch (error) {
       console.error(`❌ Error updating entity context:`, error);
@@ -309,7 +311,6 @@ Now parse this query: "${query}"`;
     console.log("\n🔍 === LLM QUERY PARSING START ===");
     console.log("❓ Query:", query);
     console.log("👤 Username:", username);
-    console.log("💭 Prompt sent to LLM:", prompt);
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
