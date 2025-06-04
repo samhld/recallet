@@ -181,7 +181,16 @@ export class DatabaseStorage implements IStorage {
       const embeddingVector = `[${relationshipEmbedding.join(',')}]`;
       const entityList = entities.map(e => `'${e}'`).join(',');
       
-      newResults = await db.execute(sql`
+      // Use a simpler approach with direct parameter binding
+      let entityQuery = '';
+      if (entities.length === 1) {
+        entityQuery = `AND (e1.name = '${entities[0]}' OR e2.name = '${entities[0]}')`;
+      } else {
+        const conditions = entities.map(entity => `e1.name = '${entity}' OR e2.name = '${entity}'`).join(' OR ');
+        entityQuery = `AND (${conditions})`;
+      }
+      
+      const queryResult = await db.execute(sql`
         SELECT 
           e1.name as source_entity,
           e2.name as target_entity,
@@ -191,17 +200,20 @@ export class DatabaseStorage implements IStorage {
         FROM relationships r
         INNER JOIN entities e1 ON r.source_entity_id = e1.id
         INNER JOIN entities e2 ON r.target_entity_id = e2.id
-        WHERE r.user_id = ${userId}
-          AND (e1.name IN (${entityList}) OR e2.name IN (${entityList}))
+        WHERE r.user_id = ${userId} ${sql.raw(entityQuery)}
         ORDER BY cosine_distance(r.relationship_vec, ${embeddingVector}::vector)
         LIMIT 10
-      `).then(result => result.rows.map(row => ({
+      `);
+      
+      console.log("🔍 Raw query result:", queryResult.rows);
+      
+      newResults = queryResult.rows.map(row => ({
         sourceEntity: row.source_entity as string,
         targetEntity: row.target_entity as string,
         relationship: row.relationship as string,
         originalInput: row.original_input as string,
         distance: row.distance as number
-      })));
+      }));
     } else {
       // If no entities specified, search both tables by relationship similarity only
       legacyResults = await db
