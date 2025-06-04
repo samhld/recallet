@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
 import { insertUserSchema, insertInputSchema } from "@shared/schema";
-import { parseInputToEntityRelationships, createEmbedding, parseQueryToEntityRelationship, synthesizeAnswerFromContext, detectExistingEntitiesForContextUpdate } from "./llm";
+import { parseInputToEntityRelationships, createEmbedding, parseQueryToEntityRelationship, synthesizeAnswerFromContext, detectExistingEntitiesForContextUpdate, generateRelationshipDescription } from "./llm";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 
@@ -180,6 +180,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Create relationship embedding
           const relationshipEmbedding = await createEmbedding(er.relationship);
           
+          // Generate and embed relationship description for better semantic matching
+          const relationshipDescription = await generateRelationshipDescription(
+            er.sourceEntity,
+            er.relationship,
+            er.targetEntity
+          );
+          const relationshipDescEmbedding = await createEmbedding(relationshipDescription);
+          
           // Create the relationship between entities
           const relationship = await storage.createRelationship({
             userId: req.session.userId!,
@@ -187,6 +195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             targetEntityId: targetEntity.id,
             relationship: er.relationship,
             relationshipVec: relationshipEmbedding,
+            relationshipDescVec: relationshipDescEmbedding,
             originalInput: inputData.content,
           });
           

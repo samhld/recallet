@@ -50,6 +50,7 @@ export const relationships = pgTable("relationships", {
   targetEntityId: integer("target_entity_id").notNull().references(() => entities.id),
   relationship: text("relationship").notNull(),
   relationshipVec: vector("relationship_vec", { dimensions: 1536 }),
+  relationshipDescVec: vector("relationship_desc_vec", { dimensions: 1536 }),
   originalInput: text("original_input").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => {

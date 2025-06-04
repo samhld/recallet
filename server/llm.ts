@@ -96,6 +96,62 @@ Now parse this input: "${input}"`;
   }
 }
 
+export async function generateRelationshipDescription(
+  sourceEntity: string,
+  relationship: string,
+  targetEntity: string
+): Promise<string> {
+  try {
+    const prompt = `Generate a detailed, semantic description of this relationship that captures its full meaning and context.
+
+Relationship: ${sourceEntity} ${relationship} ${targetEntity}
+
+Rules:
+1. Create a descriptive sentence that explains the nature of the connection
+2. Include context about what this relationship means
+3. Make it detailed enough to distinguish from similar relationships
+4. Focus on the semantic meaning, not just restating the relationship
+
+Examples:
+Input: "sam-test1 loves Thomas Rhett"
+Output: "This person has a strong emotional affection and admiration for the country music artist Thomas Rhett, enjoying his music and considering him a preferred performer"
+
+Input: "sam-test1 favorite country artist is Jake Owen" 
+Output: "This person considers Jake Owen to be their most preferred and beloved country music performer, ranking him above all other artists in the country genre"
+
+Input: "Marissa is sam-test1's fiancee"
+Output: "Marissa is the romantic partner who is engaged to be married to this person, representing a committed relationship with plans for future marriage"
+
+Now generate a description for: ${sourceEntity} ${relationship} ${targetEntity}`;
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert at creating semantic descriptions of relationships between entities. Generate detailed, meaningful descriptions that capture the full context and nuance of relationships."
+        },
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.1,
+      max_tokens: 150
+    });
+
+    const description = response.choices[0].message.content?.trim();
+    if (!description) throw new Error("No description generated");
+
+    console.log(`🔗 Generated relationship description: "${description}"`);
+    return description;
+  } catch (error) {
+    console.error("❌ Error generating relationship description:", error);
+    // Fallback to simple description
+    return `${sourceEntity} has the relationship "${relationship}" with ${targetEntity}`;
+  }
+}
+
 export async function createEmbedding(text: string): Promise<number[]> {
   try {
     console.log("🔗 Creating embedding for text:", text);
