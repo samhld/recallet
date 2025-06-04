@@ -184,13 +184,13 @@ export class DatabaseStorage implements IStorage {
           e2.name as target_entity,
           r.relationship,
           r.original_input,
-          cosine_distance(r.relationship_vec, ${relationshipEmbedding}) as distance
+          cosine_distance(r.relationship_vec, ARRAY[${relationshipEmbedding.join(',')}]::vector(1536)) as distance
         FROM relationships r
         INNER JOIN entities e1 ON r.source_entity_id = e1.id
         INNER JOIN entities e2 ON r.target_entity_id = e2.id
         WHERE r.user_id = ${userId}
-          AND (e1.name IN (${entities.map(e => `'${e}'`).join(',')}) OR e2.name IN (${entities.map(e => `'${e}'`).join(',')}))
-        ORDER BY cosine_distance(r.relationship_vec, ${relationshipEmbedding})
+          AND (e1.name = ANY(ARRAY[${entities.map(e => `'${e}'`).join(',')}]) OR e2.name = ANY(ARRAY[${entities.map(e => `'${e}'`).join(',')}]))
+        ORDER BY cosine_distance(r.relationship_vec, ARRAY[${relationshipEmbedding.join(',')}]::vector(1536))
         LIMIT 10
       `).then(result => result.rows.map(row => ({
         sourceEntity: row.source_entity as string,
