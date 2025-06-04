@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
 import { insertUserSchema, insertInputSchema } from "@shared/schema";
-import { parseInputToEntityRelationships, createEmbedding, parseQueryToEntityRelationship, synthesizeAnswerFromContext } from "./llm";
+import { parseInputToEntityRelationships, createEmbedding, parseQueryToEntityRelationship, synthesizeAnswerFromContext, detectExistingEntitiesForContextUpdate } from "./llm";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 
@@ -267,7 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("🔍 Searching knowledge graph and relationships...");
       
       // Enhanced search: combine entity-based and relationship-based searching
-      let searchResults = { originalInputs: [], targetEntities: [] };
+      let searchResults: { originalInputs: string[]; targetEntities: string[] } = { originalInputs: [], targetEntities: [] };
       
       // First, try entity-based search in knowledge graph
       if (parsed.entities.length > 0) {
