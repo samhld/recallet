@@ -150,25 +150,82 @@ export class DatabaseStorage implements IStorage {
     console.log("📊 User ID:", userId);
     console.log("🎯 Entities to search for:", entities);
     
-    // Search by relationship similarity only, for the user's knowledge graph
-    const results = await db
-      .select({
-        sourceEntity: knowledgeGraph.sourceEntity,
-        targetEntity: knowledgeGraph.targetEntity,
-        relationship: knowledgeGraph.relationship,
-        originalInput: knowledgeGraph.originalInput,
-        distance: cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding)
-      })
-      .from(knowledgeGraph)
-      .where(eq(knowledgeGraph.userId, userId))
-      .orderBy(cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding))
-      .limit(10);
+    // Search both legacy knowledge_graph table and new relationships table
+    let legacyResults: any[] = [];
+    let newResults: any[] = [];
+    
+    if (entities.length > 0) {
+      // Search legacy knowledge_graph table
+      legacyResults = await db
+        .select({
+          sourceEntity: knowledgeGraph.sourceEntity,
+          targetEntity: knowledgeGraph.targetEntity,
+          relationship: knowledgeGraph.relationship,
+          originalInput: knowledgeGraph.originalInput,
+          distance: cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding)
+        })
+        .from(knowledgeGraph)
+        .where(
+          and(
+            eq(knowledgeGraph.userId, userId),
+            or(
+              ...entities.map(entity => eq(knowledgeGraph.sourceEntity, entity)),
+              ...entities.map(entity => eq(knowledgeGraph.targetEntity, entity))
+            )
+          )
+        )
+        .orderBy(cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding))
+        .limit(10);
 
-    console.log("📋 Raw database results:", results);
-    console.log("🔢 Number of matches found:", results.length);
+      // Search new relationships table with entity joins using raw SQL for simplicity
+      newResults = await db.execute(sql`
+        SELECT 
+          e1.name as source_entity,
+          e2.name as target_entity,
+          r.relationship,
+          r.original_input,
+          cosine_distance(r.relationship_vec, ${relationshipEmbedding}) as distance
+        FROM relationships r
+        INNER JOIN entities e1 ON r.source_entity_id = e1.id
+        INNER JOIN entities e2 ON r.target_entity_id = e2.id
+        WHERE r.user_id = ${userId}
+          AND (e1.name IN (${entities.map(e => `'${e}'`).join(',')}) OR e2.name IN (${entities.map(e => `'${e}'`).join(',')}))
+        ORDER BY cosine_distance(r.relationship_vec, ${relationshipEmbedding})
+        LIMIT 10
+      `).then(result => result.rows.map(row => ({
+        sourceEntity: row.source_entity as string,
+        targetEntity: row.target_entity as string,
+        relationship: row.relationship as string,
+        originalInput: row.original_input as string,
+        distance: row.distance as number
+      })));
+    } else {
+      // If no entities specified, search both tables by relationship similarity only
+      legacyResults = await db
+        .select({
+          sourceEntity: knowledgeGraph.sourceEntity,
+          targetEntity: knowledgeGraph.targetEntity,
+          relationship: knowledgeGraph.relationship,
+          originalInput: knowledgeGraph.originalInput,
+          distance: cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding)
+        })
+        .from(knowledgeGraph)
+        .where(eq(knowledgeGraph.userId, userId))
+        .orderBy(cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding))
+        .limit(10);
+
+      newResults = [];
+    }
+
+    // Combine results from both tables
+    const allResults = [...legacyResults, ...newResults];
+    
+    console.log("📋 Legacy results:", legacyResults.length);
+    console.log("📋 New results:", newResults.length);
+    console.log("📋 Combined results:", allResults);
 
     // Filter relevant results
-    const filteredResults = results.filter(result => result.distance < 0.5);
+    const filteredResults = allResults.filter(result => (result.distance as number) < 0.7);
     
     // Extract original inputs and target entities
     const originalInputs = filteredResults.map(result => result.originalInput);
