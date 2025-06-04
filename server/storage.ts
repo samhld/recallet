@@ -207,11 +207,18 @@ export class DatabaseStorage implements IStorage {
         INNER JOIN entities e1 ON r.source_entity_id = e1.id
         INNER JOIN entities e2 ON r.target_entity_id = e2.id
         WHERE r.user_id = ${userId} ${sql.raw(entityQuery)}
+          AND cosine_distance(r.relationship_vec, ${embeddingVector}::vector) < 0.7
         ORDER BY cosine_distance(r.relationship_vec, ${embeddingVector}::vector)
-        LIMIT 10
+        LIMIT 5
       `);
       
-      console.log("🔍 Raw query result:", queryResult.rows);
+      console.log("🔍 Raw query result:", queryResult.rows.map(row => ({
+        source_entity: row.source_entity,
+        target_entity: row.target_entity,
+        relationship: row.relationship,
+        distance: row.distance,
+        original_input: row.original_input
+      })));
       
       newResults = queryResult.rows.map(row => ({
         sourceEntity: row.source_entity as string,
@@ -468,11 +475,18 @@ export class DatabaseStorage implements IStorage {
         INNER JOIN entities e1 ON r.source_entity_id = e1.id
         INNER JOIN entities e2 ON r.target_entity_id = e2.id
         WHERE r.user_id = ${userId}
+          AND cosine_distance(r.relationship_vec, ${embeddingVector}::vector) < 0.7
         ORDER BY cosine_distance(r.relationship_vec, ${embeddingVector}::vector)
-        LIMIT 10
+        LIMIT 5
       `);
 
-      console.log("📊 Raw relationship search results:", queryResult.rows);
+      console.log("📊 Raw relationship search results:", queryResult.rows.map(row => ({
+        source_entity_name: row.source_entity_name,
+        target_entity_name: row.target_entity_name,
+        relationship: row.relationship,
+        distance: row.distance,
+        original_input: row.original_input
+      })));
 
       const relationships: Relationship[] = queryResult.rows.map(row => ({
         id: row.id as number,
