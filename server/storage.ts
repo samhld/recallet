@@ -350,6 +350,40 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getAllUserEntities(userId: number): Promise<{ name: string; description: string }[]> {
+    const result = await db
+      .select({
+        name: entities.name,
+        description: entities.description
+      })
+      .from(entities)
+      .where(eq(entities.userId, userId));
+    
+    return result.map(r => ({
+      name: r.name,
+      description: r.description || ''
+    }));
+  }
+
+  async updateEntityDescription(userId: number, entityName: string, newDescription: string): Promise<void> {
+    // Generate new embedding for updated description
+    const { createEmbedding } = await import('./llm');
+    const descriptionEmbedding = await createEmbedding(newDescription);
+    
+    await db
+      .update(entities)
+      .set({
+        description: newDescription,
+        descriptionVec: descriptionEmbedding
+      })
+      .where(
+        and(
+          eq(entities.userId, userId),
+          eq(entities.name, entityName)
+        )
+      );
+  }
+
   async createRelationship(relationship: InsertRelationship): Promise<Relationship> {
     try {
       const [newRelationship] = await db

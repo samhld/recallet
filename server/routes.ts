@@ -151,23 +151,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log("🔗 Creating GraphRAG entities and relationships...");
         
-        // Process each relationship using GraphRAG approach
+        // Get existing entities for alias resolution
+        const existingEntities = await storage.getAllUserEntities(req.session.userId!);
+        
+        // Process each relationship using GraphRAG approach with entity resolution
         for (const er of entityRelationships) {
           console.log(`\n📊 Processing relationship: ${er.sourceEntity} -> ${er.relationship} -> ${er.targetEntity}`);
           
-          // Get or create source entity (with description generation only if new)
+          // Resolve entity aliases
+          const sourceResolution = await resolveEntityAliases(er.sourceEntity, existingEntities, user.username);
+          const targetResolution = await resolveEntityAliases(er.targetEntity, existingEntities, user.username);
+          
+          console.log("🔍 Source resolution:", sourceResolution);
+          console.log("🔍 Target resolution:", targetResolution);
+          
+          // Get or create entities using resolved names
           const sourceEntity = await storage.getOrCreateEntity(
             req.session.userId!,
-            er.sourceEntity,
+            sourceResolution.resolvedEntity,
             user.username
           );
           
-          // Get or create target entity (with description generation only if new)
           const targetEntity = await storage.getOrCreateEntity(
             req.session.userId!,
-            er.targetEntity,
+            targetResolution.resolvedEntity,
             user.username
           );
+          
+          // Update descriptions if aliases were resolved
+          if (sourceResolution.isAlias && sourceResolution.updatedDescription) {
+            await storage.updateEntityDescription(req.session.userId!, sourceResolution.resolvedEntity, sourceResolution.updatedDescription);
+          }
+          if (targetResolution.isAlias && targetResolution.updatedDescription) {
+            await storage.updateEntityDescription(req.session.userId!, targetResolution.resolvedEntity, targetResolution.updatedDescription);
+          }
           
           // Create relationship embedding
           const relationshipEmbedding = await createEmbedding(er.relationship);
