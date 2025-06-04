@@ -1,4 +1,4 @@
-import { users, inputs, queries, knowledgeGraph, entities, relationships, type User, type InsertUser, type Input, type InsertInput, type Query, type InsertQuery, type KnowledgeGraph, type InsertKnowledgeGraph, type Entity, type InsertEntity, type Relationship, type InsertRelationship } from "@shared/schema";
+import { users, inputs, queries, entities, relationships, type User, type InsertUser, type Input, type InsertInput, type Query, type InsertQuery, type Entity, type InsertEntity, type Relationship, type InsertRelationship } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, ilike, or, and, sql, cosineDistance } from "drizzle-orm";
 import { generateEntityDescription, createEmbedding } from "./llm";
@@ -18,14 +18,13 @@ export interface IStorage {
   createQuery(query: InsertQuery): Promise<Query>;
   getUserQueries(userId: number, limit?: number): Promise<Query[]>;
   
-  // Knowledge Graph operations (legacy)
-  createKnowledgeGraphEntry(entry: InsertKnowledgeGraph): Promise<KnowledgeGraph>;
+  // Knowledge Graph operations (entity + relationship combined search)
   searchKnowledgeGraph(userId: number, entities: string[], relationshipEmbedding: number[]): Promise<{
     originalInputs: string[];
     targetEntities: string[];
   }>;
   
-  // GraphRAG operations
+  // Entity and Relationship operations
   getOrCreateEntity(userId: number, entityName: string, username: string): Promise<Entity>;
   createRelationship(relationship: InsertRelationship): Promise<Relationship>;
   searchEntitiesByDescription(userId: number, queryEmbedding: number[]): Promise<Entity[]>;
@@ -119,7 +118,7 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async createKnowledgeGraphEntry(entry: InsertKnowledgeGraph): Promise<KnowledgeGraph> {
+  async createKnowledgeGraphEntry(entry: any): Promise<any> {
     // Legacy method - no longer used, entities and relationships tables are used instead
     throw new Error("createKnowledgeGraphEntry is deprecated - use entity/relationship methods instead");
   }
