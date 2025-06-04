@@ -276,8 +276,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("🚀 OPTIMIZATION: User entity found in query, user-scoped search already implied");
       }
       
-      // Create embedding for the relationship
-      const relationshipEmbedding = await createEmbedding(parsed.relationship);
+      // Generate query relationship description and create embedding for better semantic matching
+      const queryRelationshipDescription = await generateRelationshipDescription(
+        "the user",
+        parsed.relationship,
+        "the target entities being sought"
+      );
+      const relationshipEmbedding = await createEmbedding(queryRelationshipDescription);
       
       console.log("🔍 Searching knowledge graph and relationships (USER-SCOPED)...");
       console.log("👤 All searches limited to user ID:", req.session.userId);

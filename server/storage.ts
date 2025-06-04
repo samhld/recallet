@@ -388,26 +388,27 @@ export class DatabaseStorage implements IStorage {
     targetEntities: string[];
   }> {
     try {
-      console.log("🔍 Searching RELATIONSHIP EMBEDDINGS in relationship_vec column");
-      console.log("🎯 Searching for relationships similar to the query relationship");
+      console.log("🔍 Searching RELATIONSHIP DESCRIPTION EMBEDDINGS in relationship_desc_vec column");
+      console.log("🎯 Searching for relationships similar to the query relationship using enhanced descriptions");
       
-      // Search relationships table by relationship embedding similarity
+      // Search relationships table by relationship description embedding similarity
       const embeddingVector = `[${relationshipEmbedding.join(',')}]`;
       
-      console.log("📊 SQL Query: Searching relationship_vec column with cosine_distance for similarity");
+      console.log("📊 SQL Query: Searching relationship_desc_vec column with cosine_distance for similarity");
       
       const queryResult = await db.execute(sql`
         SELECT 
           r.*,
           e1.name as source_entity_name,
           e2.name as target_entity_name,
-          cosine_distance(r.relationship_vec, ${embeddingVector}::vector) as distance
+          cosine_distance(r.relationship_desc_vec, ${embeddingVector}::vector) as distance
         FROM relationships r
         INNER JOIN entities e1 ON r.source_entity_id = e1.id
         INNER JOIN entities e2 ON r.target_entity_id = e2.id
         WHERE r.user_id = ${userId}
-          AND cosine_distance(r.relationship_vec, ${embeddingVector}::vector) < 0.7
-        ORDER BY cosine_distance(r.relationship_vec, ${embeddingVector}::vector)
+          AND r.relationship_desc_vec IS NOT NULL
+          AND cosine_distance(r.relationship_desc_vec, ${embeddingVector}::vector) < 0.7
+        ORDER BY cosine_distance(r.relationship_desc_vec, ${embeddingVector}::vector)
         LIMIT 5
       `);
 
