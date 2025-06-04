@@ -195,6 +195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             targetEntityId: targetEntity.id,
             relationship: er.relationship,
             relationshipVec: relationshipEmbedding,
+            relationshipDesc: relationshipDescription,
             relationshipDescVec: relationshipDescEmbedding,
             originalInput: inputData.content,
           });

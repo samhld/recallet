@@ -427,6 +427,8 @@ export class DatabaseStorage implements IStorage {
         targetEntityId: row.target_entity_id as number,
         relationship: row.relationship as string,
         relationshipVec: row.relationship_vec as number[],
+        relationshipDesc: row.relationship_desc as string | null,
+        relationshipDescVec: row.relationship_desc_vec as number[] | null,
         originalInput: row.original_input as string,
         createdAt: row.created_at as Date,
         sourceEntityName: row.source_entity_name as string,
