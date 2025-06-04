@@ -30,6 +30,10 @@ export interface IStorage {
   createRelationship(relationship: InsertRelationship): Promise<Relationship>;
   searchEntitiesByDescription(userId: number, queryEmbedding: number[]): Promise<Entity[]>;
   
+  // Entity resolution operations
+  getAllUserEntities(userId: number): Promise<{ name: string; description: string }[]>;
+  updateEntityDescription(userId: number, entityName: string, newDescription: string): Promise<void>;
+  
   // Stats operations
   getUserStats(userId: number): Promise<{
     totalInputs: number;
