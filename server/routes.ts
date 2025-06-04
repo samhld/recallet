@@ -261,40 +261,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("🎯 Extracted entities:", parsed.entities);
       console.log("🔗 Extracted relationship:", parsed.relationship);
       
+      // Optimization: Check if user entity is in the query entities
+      const userEntityInQuery = parsed.entities.includes(user.username);
+      if (userEntityInQuery) {
+        console.log("🚀 OPTIMIZATION: User entity found in query, user-scoped search already implied");
+      }
+      
       // Create embedding for the relationship
       const relationshipEmbedding = await createEmbedding(parsed.relationship);
       
-      console.log("🔍 Searching knowledge graph and relationships...");
+      console.log("🔍 Searching knowledge graph and relationships (USER-SCOPED)...");
+      console.log("👤 All searches limited to user ID:", req.session.userId);
       
       // Enhanced search: combine entity-based and relationship-based searching
       let searchResults: { originalInputs: string[]; targetEntities: string[] } = { originalInputs: [], targetEntities: [] };
       
-      // First, try entity-based search in knowledge graph
+      // First, try entity-based search in knowledge graph (if entities specified)
       if (parsed.entities.length > 0) {
+        console.log("🔍 Step 1: Entity-based search (USER-SCOPED)");
         searchResults = await storage.searchKnowledgeGraph(
           req.session.userId!,
           parsed.entities,
           relationshipEmbedding
         );
+        console.log("✅ Entity search completed, found", searchResults.targetEntities.length, "entities");
       }
       
-      // If no results or no entities specified, OR for testing - search by relationship embeddings
-      if (searchResults.targetEntities.length === 0 || parsed.entities.length === 0) {
-        console.log("🔄 No entity-based results found, searching by relationship embeddings...");
-        const relationshipResults = await storage.searchRelationshipsByEmbedding(
-          req.session.userId!,
-          relationshipEmbedding
-        );
-        
-        searchResults.targetEntities = relationshipResults.targetEntities;
-        searchResults.originalInputs = relationshipResults.relationships.map(r => r.originalInput);
-        
-        console.log("🎯 Relationship search completed:");
-        console.log("📌 Found target entities:", searchResults.targetEntities);
-        console.log("📚 Found original inputs:", searchResults.originalInputs);
-      } else {
-        console.log("✅ Entity-based search found results, skipping relationship search");
-      }
+      // Always also search by relationship embeddings
+      console.log("🔍 Step 2: Relationship-based search (always runs)");
+      const relationshipResults = await storage.searchRelationshipsByEmbedding(
+        req.session.userId!,
+        relationshipEmbedding
+      );
+      
+      // Combine results from both searches (avoid duplicates)
+      const allTargetEntities = [...searchResults.targetEntities, ...relationshipResults.targetEntities];
+      const allOriginalInputs = [...searchResults.originalInputs, ...relationshipResults.relationships.map(r => r.originalInput)];
+      
+      const combinedTargetEntities = allTargetEntities.filter((item, index) => allTargetEntities.indexOf(item) === index);
+      const combinedOriginalInputs = allOriginalInputs.filter((item, index) => allOriginalInputs.indexOf(item) === index);
+      
+      searchResults.targetEntities = combinedTargetEntities;
+      searchResults.originalInputs = combinedOriginalInputs;
+      
+      console.log("🎯 Combined search results:");
+      console.log("📌 Total unique target entities:", searchResults.targetEntities.length);
+      console.log("📚 Total unique original inputs:", searchResults.originalInputs.length);
       
       console.log("📊 Found target entities:", searchResults.targetEntities);
       console.log("📚 Found original inputs:", searchResults.originalInputs);
