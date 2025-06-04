@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
 import { insertUserSchema, insertInputSchema } from "@shared/schema";
-import { parseInputToEntityRelationships, createEmbedding, parseQueryToEntityRelationship, synthesizeAnswerFromContext, resolveEntityAliases } from "./llm";
+import { parseInputToEntityRelationships, createEmbedding, parseQueryToEntityRelationship, synthesizeAnswerFromContext } from "./llm";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 
@@ -168,7 +168,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             er.targetEntity,
             user.username
           );
-
           
           // Create relationship embedding
           const relationshipEmbedding = await createEmbedding(er.relationship);
