@@ -133,8 +133,8 @@ Examples:
 Entity: "Thomas Rhett"
 Description: "A popular country music artist and singer-songwriter known for hits like 'Die From A Broken Heart' and 'Look What God Gave Her'."
 
-Entity: "sam-test1's girlfriend"
-Description: "The romantic partner of user sam-test1, referenced in their personal knowledge base."
+Entity: "sam-test1's fiancee"
+Description: "The romantic partner of user sam-test1, soon to be married, referenced in their personal knowledge base."
 
 Entity: "Jake Owen"
 Description: "A country music artist and singer known for songs like 'Barefoot Blue Jean Night' and 'American Country Love Song'."

@@ -126,7 +126,7 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">PersonalBase</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Recallet</h1>
               <nav className="hidden md:flex space-x-8">
                 <span className="text-primary border-b-2 border-primary pb-4 mb-[-1px] px-1 text-sm font-medium">
                   Dashboard
