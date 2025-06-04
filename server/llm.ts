@@ -288,15 +288,29 @@ export async function parseQueryToEntityRelationship(
 ): Promise<{ entities: string[]; relationship: string }> {
   const prompt = `Parse this query to extract the main entities and relationship being asked about.
 
-Rules:
+Rules for entity extraction:
 1. Use "<user>" to represent the user asking (${username})
-2. Handle possessives properly (e.g., "my girlfriend" becomes "<user>'s girlfriend")
-3. Extract the core relationship being queried
-4. Return entities as an array and relationship as a string
-5. Return valid JSON only
+2. Extract the subject entities that the question is about
+3. When "my" is used, the user (<user>) is one entity
+4. "Who", "what", "where" questions often seek information about relationships involving the user
+5. Handle possessives properly (e.g., "my girlfriend" becomes "<user>'s girlfriend" as a separate entity)
+
+Rules for relationship extraction:
+1. Extract the core relationship/connection being queried
+2. Focus on the action, attribute, or connection being asked about
+3. Remove question words (who, what, where, when) from the relationship
 
 Examples:
-Query: "who is my favorite country artist"
+Query: "who will I marry?"
+Output: {"entities": ["<user>"], "relationship": "will marry"}
+
+Query: "who are my favorite artists?"
+Output: {"entities": ["<user>"], "relationship": "favorite artists"}
+
+Query: "what does my fiancee like?"
+Output: {"entities": ["<user>'s fiancee"], "relationship": "likes"}
+
+Query: "who is my favorite country artist?"
 Output: {"entities": ["<user>"], "relationship": "favorite country artist is"}
 
 Query: "Who does my girlfriend love?"
