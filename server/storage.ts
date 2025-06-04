@@ -177,20 +177,23 @@ export class DatabaseStorage implements IStorage {
         .orderBy(cosineDistance(knowledgeGraph.relationshipVec, relationshipEmbedding))
         .limit(10);
 
-      // Search new relationships table with entity joins using raw SQL for simplicity
+      // Search new relationships table with entity joins
+      const embeddingVector = `[${relationshipEmbedding.join(',')}]`;
+      const entityList = entities.map(e => `'${e}'`).join(',');
+      
       newResults = await db.execute(sql`
         SELECT 
           e1.name as source_entity,
           e2.name as target_entity,
           r.relationship,
           r.original_input,
-          cosine_distance(r.relationship_vec, ARRAY[${relationshipEmbedding.join(',')}]::vector(1536)) as distance
+          cosine_distance(r.relationship_vec, ${embeddingVector}::vector) as distance
         FROM relationships r
         INNER JOIN entities e1 ON r.source_entity_id = e1.id
         INNER JOIN entities e2 ON r.target_entity_id = e2.id
         WHERE r.user_id = ${userId}
-          AND (e1.name = ANY(ARRAY[${entities.map(e => `'${e}'`).join(',')}]) OR e2.name = ANY(ARRAY[${entities.map(e => `'${e}'`).join(',')}]))
-        ORDER BY cosine_distance(r.relationship_vec, ARRAY[${relationshipEmbedding.join(',')}]::vector(1536))
+          AND (e1.name IN (${entityList}) OR e2.name IN (${entityList}))
+        ORDER BY cosine_distance(r.relationship_vec, ${embeddingVector}::vector)
         LIMIT 10
       `).then(result => result.rows.map(row => ({
         sourceEntity: row.source_entity as string,
