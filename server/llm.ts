@@ -157,7 +157,7 @@ export async function createEmbedding(text: string): Promise<number[]> {
     console.log("🔗 Creating embedding for text:", text);
 
     const response = await openai.embeddings.create({
-      model: "text-embedding-3-small",
+      model: "text-embedding-ada-002",
       input: text,
     });
 

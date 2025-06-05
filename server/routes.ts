@@ -374,6 +374,44 @@ LIMIT 10;`;
     }
   });
 
+  // Backfill relationship description embeddings
+  app.post("/api/backfill-embeddings", requireAuth, async (req, res) => {
+    try {
+      console.log("🔄 Starting relationship description embedding backfill...");
+      
+      const relationshipsToUpdate = await db.execute(sql`
+        SELECT id, relationship_desc 
+        FROM relationships 
+        WHERE relationship_desc IS NOT NULL 
+        AND relationship_desc_vec IS NULL
+      `);
+      
+      let updated = 0;
+      for (const row of relationshipsToUpdate.rows) {
+        if (row.relationship_desc) {
+          console.log(`Processing relationship ${row.id}...`);
+          const embedding = await createEmbedding(row.relationship_desc as string);
+          const embeddingVector = `[${embedding.join(',')}]`;
+          
+          await db.execute(sql`
+            UPDATE relationships 
+            SET relationship_desc_vec = ${embeddingVector}::vector
+            WHERE id = ${row.id}
+          `);
+          
+          updated++;
+          console.log(`✅ Updated relationship ${row.id} (${updated}/${relationshipsToUpdate.rows.length})`);
+        }
+      }
+      
+      console.log(`✅ Backfill complete! Updated ${updated} relationship description embeddings`);
+      res.json({ message: `Updated ${updated} embeddings`, success: true });
+    } catch (error) {
+      console.error("❌ Backfill error:", error);
+      res.status(500).json({ message: "Backfill failed", error: error.message });
+    }
+  });
+
   // Stats routes
   app.get("/api/stats", requireAuth, async (req, res) => {
     try {
