@@ -102,27 +102,27 @@ export async function generateRelationshipDescription(
   targetEntity: string
 ): Promise<string> {
   try {
-    const prompt = `Generate a very concise, semantic description of this relationship. Keep it under 150 characters total.
+    const prompt = `Generate a semantic description of ONLY this specific relationship. Focus purely on what the relationship "${relationship}" means between these entities. Do not add external context.
 
 Relationship: ${sourceEntity} ${relationship} ${targetEntity}
 
 Rules:
-1. Maximum 2 short sentences
-2. Focus on core semantic meaning
-3. Be specific but brief
-4. Under 150 characters total
+1. Describe ONLY the relationship "${relationship}" - nothing else
+2. Do not add context about what the entities are
+3. Keep under 80 characters
+4. Focus purely on the semantic meaning of "${relationship}"
 
 Examples:
 Input: "sam-test1 loves Thomas Rhett"
-Output: "This person has strong affection for country artist Thomas Rhett. They consider him a preferred performer."
+Output: "Strong emotional affection and admiration."
 
 Input: "sam-test1 favorite country artist is Jake Owen" 
-Output: "This person considers Jake Owen their top country music performer. He ranks above all other country artists."
+Output: "Top preference ranking above all others in category."
 
 Input: "Marissa is sam-test1's fiancee"
-Output: "Marissa is engaged to this person. They plan to marry."
+Output: "Engaged romantic partnership with marriage plans."
 
-Now generate a description for: ${sourceEntity} ${relationship} ${targetEntity}`;
+Now generate a description for the relationship "${relationship}": ${sourceEntity} ${relationship} ${targetEntity}`;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
