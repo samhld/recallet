@@ -410,9 +410,9 @@ export class DatabaseStorage implements IStorage {
         INNER JOIN entities e2 ON r.target_entity_id = e2.id
         WHERE r.user_id = ${userId}
           AND (
-            (r.relationship_desc_vec IS NOT NULL AND cosine_distance(r.relationship_desc_vec, ${embeddingVector}::vector) < 0.7)
+            (r.relationship_desc_vec IS NOT NULL AND cosine_distance(r.relationship_desc_vec, ${embeddingVector}::vector) < 0.24)
             OR 
-            (r.relationship_desc_vec IS NULL AND cosine_distance(r.relationship_vec, ${embeddingVector}::vector) < 0.7)
+            (r.relationship_desc_vec IS NULL AND cosine_distance(r.relationship_vec, ${embeddingVector}::vector) < 0.24)
           )
         ORDER BY distance
         LIMIT 5
