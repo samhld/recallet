@@ -395,6 +395,8 @@ export class DatabaseStorage implements IStorage {
       const embeddingVector = `[${relationshipEmbedding.join(',')}]`;
       
       console.log("📊 SQL Query: Searching relationship_desc_vec column with cosine_distance for similarity");
+      console.log("🔍 Query embedding vector length:", relationshipEmbedding.length);
+      console.log("🎯 User ID being searched:", userId);
       
       // First, get all relationships and show their distances
       const allRelationshipsQuery = await db.execute(sql`
@@ -423,6 +425,8 @@ export class DatabaseStorage implements IStorage {
         has_desc: row.relationship_desc ? 'YES' : 'NO'
       })));
 
+      console.log("🔍 Executing filtered query with threshold 0.8...");
+      
       const queryResult = await db.execute(sql`
         SELECT 
           r.*,
@@ -444,6 +448,8 @@ export class DatabaseStorage implements IStorage {
         ORDER BY distance
         LIMIT 5
       `);
+      
+      console.log("🔍 Filtered query returned", queryResult.rows.length, "rows");
 
       console.log("📊 Raw relationship search results with distances:", queryResult.rows.map(row => ({
         source_entity_name: row.source_entity_name,
