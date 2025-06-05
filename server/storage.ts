@@ -420,9 +420,8 @@ export class DatabaseStorage implements IStorage {
         source_entity_name: row.source_entity_name,
         target_entity_name: row.target_entity_name,
         relationship: row.relationship,
-        distance: parseFloat(row.distance as string).toFixed(4),
-        embedding_type: row.relationship_desc_vec ? 'description' : 'original',
-        has_desc: row.relationship_desc ? 'YES' : 'NO'
+        relationship_desc: row.relationship_desc,
+        distance: parseFloat(row.distance as string).toFixed(4)
       })));
 
       console.log("🔍 Executing filtered query with threshold 0.8...");
@@ -455,8 +454,8 @@ export class DatabaseStorage implements IStorage {
         source_entity_name: row.source_entity_name,
         target_entity_name: row.target_entity_name,
         relationship: row.relationship,
+        relationship_desc: row.relationship_desc,
         distance: parseFloat(row.distance as string).toFixed(4),
-        embedding_type: row.relationship_desc_vec ? 'description' : 'original',
         original_input: row.original_input
       })));
 
