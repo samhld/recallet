@@ -1,5 +1,6 @@
-const { Pool } = require('pg');
-const OpenAI = require('openai');
+import pkg from 'pg';
+const { Pool } = pkg;
+import OpenAI from 'openai';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
