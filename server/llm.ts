@@ -102,25 +102,25 @@ export async function generateRelationshipDescription(
   targetEntity: string
 ): Promise<string> {
   try {
-    const prompt = `Generate a detailed, semantic description of this relationship that captures its full meaning and context.
+    const prompt = `Generate a very concise, semantic description of this relationship. Keep it under 150 characters total.
 
 Relationship: ${sourceEntity} ${relationship} ${targetEntity}
 
 Rules:
-1. Create a descriptive sentence that explains the nature of the connection
-2. Include context about what this relationship means
-3. Make it detailed enough to distinguish from similar relationships
-4. Focus on the semantic meaning, not just restating the relationship
+1. Maximum 2 short sentences
+2. Focus on core semantic meaning
+3. Be specific but brief
+4. Under 150 characters total
 
 Examples:
 Input: "sam-test1 loves Thomas Rhett"
-Output: "This person has a strong emotional affection and admiration for the country music artist Thomas Rhett, enjoying his music and considering him a preferred performer"
+Output: "This person has strong affection for country artist Thomas Rhett. They consider him a preferred performer."
 
 Input: "sam-test1 favorite country artist is Jake Owen" 
-Output: "This person considers Jake Owen to be their most preferred and beloved country music performer, ranking him above all other artists in the country genre"
+Output: "This person considers Jake Owen their top country music performer. He ranks above all other country artists."
 
 Input: "Marissa is sam-test1's fiancee"
-Output: "Marissa is the romantic partner who is engaged to be married to this person, representing a committed relationship with plans for future marriage"
+Output: "Marissa is engaged to this person. They plan to marry."
 
 Now generate a description for: ${sourceEntity} ${relationship} ${targetEntity}`;
 

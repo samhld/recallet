@@ -8,22 +8,22 @@ const openai = new OpenAI({
 
 async function generateRelationshipDescription(sourceEntity, relationship, targetEntity) {
   try {
-    const prompt = `Generate a detailed, semantic description of this relationship that captures its full meaning and context.
+    const prompt = `Generate a concise, semantic description of this relationship that captures its meaning.
 
 Relationship: ${sourceEntity} ${relationship} ${targetEntity}
 
 Rules:
-1. Create a descriptive sentence that explains the nature of the connection
-2. Include context about what this relationship means
-3. Make it detailed enough to distinguish from similar relationships
-4. Focus on the semantic meaning, not just restating the relationship
+1. Maximum 2-3 sentences
+2. Focus on the semantic meaning and context
+3. Be specific enough to distinguish from similar relationships
+4. Keep it concise but informative
 
 Examples:
 Input: "sam-test1 loves Thomas Rhett"
-Output: "This person has a strong emotional affection and admiration for the country music artist Thomas Rhett, enjoying his music and considering him a preferred performer"
+Output: "This person has strong emotional affection for country music artist Thomas Rhett. They enjoy his music and consider him a preferred performer."
 
 Input: "sam-test1 favorite country artist is Jake Owen" 
-Output: "This person considers Jake Owen to be their most preferred and beloved country music performer, ranking him above all other artists in the country genre"
+Output: "This person considers Jake Owen their most preferred country music performer. He ranks above all other artists in the country genre for them."
 
 Now generate a description for: ${sourceEntity} ${relationship} ${targetEntity}`;
 
