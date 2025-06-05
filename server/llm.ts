@@ -175,24 +175,23 @@ export async function generateEntityDescription(
   entityName: string,
   username: string,
 ): Promise<string> {
-  const prompt = `Generate a concise, informative description for the entity "${entityName}" in the context of user "${username}"'s personal knowledge base.
+  const prompt = `Generate a very concise description for "${entityName}". Keep under 80 characters total.
 
 Rules:
-1. Keep it factual and descriptive
-2. Maximum 2-3 sentences
-3. Focus on what this entity represents in the user's context
-4. Don't make assumptions beyond what the entity name suggests
-5. Return only the description text, no JSON
+1. Maximum 1-2 short sentences
+2. Focus on core identity/role
+3. Be factual and brief
+4. Under 80 characters total
 
 Examples:
 Entity: "Thomas Rhett"
-Description: "A popular country music artist and singer-songwriter known for hits like 'Die From A Broken Heart' and 'Look What God Gave Her'."
+Description: "Country music artist known for chart-topping hits."
 
-Entity: "sam-test1's fiancee"
-Description: "The romantic partner of user sam-test1, soon to be married, referenced in their personal knowledge base."
+Entity: "sam-test1's fiancee"  
+Description: "User's romantic partner, engaged to be married."
 
 Entity: "Jake Owen"
-Description: "A country music artist and singer known for songs like 'Barefoot Blue Jean Night' and 'American Country Love Song'."
+Description: "Country singer known for 'Barefoot Blue Jean Night'."
 
 Now generate a description for: "${entityName}"`;
 
