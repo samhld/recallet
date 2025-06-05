@@ -396,6 +396,33 @@ export class DatabaseStorage implements IStorage {
       
       console.log("📊 SQL Query: Searching relationship_desc_vec column with cosine_distance for similarity");
       
+      // First, get all relationships and show their distances
+      const allRelationshipsQuery = await db.execute(sql`
+        SELECT 
+          r.*,
+          e1.name as source_entity_name,
+          e2.name as target_entity_name,
+          CASE 
+            WHEN r.relationship_desc_vec IS NOT NULL THEN cosine_distance(r.relationship_desc_vec, ${embeddingVector}::vector)
+            ELSE cosine_distance(r.relationship_vec, ${embeddingVector}::vector)
+          END as distance
+        FROM relationships r
+        INNER JOIN entities e1 ON r.source_entity_id = e1.id
+        INNER JOIN entities e2 ON r.target_entity_id = e2.id
+        WHERE r.user_id = ${userId}
+        ORDER BY distance
+        LIMIT 10
+      `);
+
+      console.log("📊 ALL relationships with distances (for analysis):", allRelationshipsQuery.rows.map(row => ({
+        source_entity_name: row.source_entity_name,
+        target_entity_name: row.target_entity_name,
+        relationship: row.relationship,
+        distance: parseFloat(row.distance as string).toFixed(4),
+        embedding_type: row.relationship_desc_vec ? 'description' : 'original',
+        has_desc: row.relationship_desc ? 'YES' : 'NO'
+      })));
+
       const queryResult = await db.execute(sql`
         SELECT 
           r.*,

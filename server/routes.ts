@@ -271,11 +271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("🎯 Extracted entities:", parsed.entities);
       console.log("🔗 Extracted relationship:", parsed.relationship);
       
-      // Optimization: Check if user entity is in the query entities
-      const userEntityInQuery = parsed.entities.includes(user.username);
-      if (userEntityInQuery) {
-        console.log("🚀 OPTIMIZATION: User entity found in query, user-scoped search already implied");
-      }
+
       
       // Generate query relationship description and create embedding for better semantic matching
       const queryRelationshipDescription = await generateRelationshipDescription(
