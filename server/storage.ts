@@ -410,19 +410,20 @@ export class DatabaseStorage implements IStorage {
         INNER JOIN entities e2 ON r.target_entity_id = e2.id
         WHERE r.user_id = ${userId}
           AND (
-            (r.relationship_desc_vec IS NOT NULL AND cosine_distance(r.relationship_desc_vec, ${embeddingVector}::vector) < 0.24)
+            (r.relationship_desc_vec IS NOT NULL AND cosine_distance(r.relationship_desc_vec, ${embeddingVector}::vector) < 0.8)
             OR 
-            (r.relationship_desc_vec IS NULL AND cosine_distance(r.relationship_vec, ${embeddingVector}::vector) < 0.24)
+            (r.relationship_desc_vec IS NULL AND cosine_distance(r.relationship_vec, ${embeddingVector}::vector) < 0.8)
           )
         ORDER BY distance
         LIMIT 5
       `);
 
-      console.log("📊 Raw relationship search results:", queryResult.rows.map(row => ({
+      console.log("📊 Raw relationship search results with distances:", queryResult.rows.map(row => ({
         source_entity_name: row.source_entity_name,
         target_entity_name: row.target_entity_name,
         relationship: row.relationship,
-        distance: row.distance,
+        distance: parseFloat(row.distance as string).toFixed(4),
+        embedding_type: row.relationship_desc_vec ? 'description' : 'original',
         original_input: row.original_input
       })));
 
