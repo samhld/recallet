@@ -1,11 +1,14 @@
-import { useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, KeyboardEvent } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Link, useLocation } from "wouter";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   Database, 
   Search, 
@@ -13,7 +16,9 @@ import {
   LogOut,
   ArrowRight,
   Plus,
-  Search as SearchIcon 
+  Search as SearchIcon,
+  Send,
+  Sparkles
 } from "lucide-react";
 
 interface Stats {
@@ -22,7 +27,7 @@ interface Stats {
   thisWeekInputs: number;
 }
 
-interface Input {
+interface InputItem {
   id: number;
   content: string;
   category?: string;
@@ -37,57 +42,92 @@ interface Query {
   createdAt: string;
 }
 
+interface InputData {
+  content: string;
+  category?: string;
+  tags?: string;
+}
+
+interface SmartSearchResult {
+  query: {
+    entities: string[];
+    relationship: string;
+  };
+  answers: string[];
+  entities: string[];
+  relationship: string;
+}
+
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [inputContent, setInputContent] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SmartSearchResult | null>(null);
 
-  const { data: stats } = useQuery<Stats>({
-    queryKey: ["/api/stats"],
+  // Mutations for input and search
+  const addInputMutation = useMutation({
+    mutationFn: async (data: InputData) => {
+      const response = await fetch("/api/inputs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to add input");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Input added successfully",
+      });
+      setInputContent("");
+      queryClient.invalidateQueries({ queryKey: ["/api/inputs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    },
     onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          setLocation("/");
-        }, 500);
-      }
+      toast({
+        title: "Error",
+        description: "Failed to add input",
+        variant: "destructive",
+      });
     },
   });
 
-  const { data: recentInputs } = useQuery<Input[]>({
-    queryKey: ["/api/inputs"],
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          setLocation("/");
-        }, 500);
-      }
+  const smartSearchMutation = useMutation({
+    mutationFn: async (data: { query: string }): Promise<SmartSearchResult> => {
+      const response = await fetch("/api/smart-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to search");
+      return response.json();
     },
+    onSuccess: (data: SmartSearchResult) => {
+      setSearchResults(data);
+      queryClient.invalidateQueries({ queryKey: ["/api/queries"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: "Failed to search",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const { data: stats } = useQuery<Stats>({
+    queryKey: ["/api/stats"],
+  });
+
+  const { data: recentInputs } = useQuery<InputItem[]>({
+    queryKey: ["/api/inputs"],
   });
 
   const { data: recentQueries } = useQuery<Query[]>({
     queryKey: ["/api/queries"],
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          setLocation("/");
-        }, 500);
-      }
-    },
   });
 
   const handleLogout = async () => {
@@ -104,6 +144,50 @@ export default function Dashboard() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleInputKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter") {
+      if (e.metaKey || e.ctrlKey) {
+        // Command/Ctrl + Enter: Add new line
+        return;
+      } else {
+        // Enter: Submit input(s)
+        e.preventDefault();
+        handleSubmitInput();
+      }
+    }
+  };
+
+  const handleSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSearch();
+    }
+  };
+
+  const handleSubmitInput = () => {
+    if (!inputContent.trim()) return;
+
+    // Split by lines and process each as separate input
+    const lines = inputContent.split('\n').filter(line => line.trim());
+    
+    if (lines.length === 1) {
+      // Single input
+      addInputMutation.mutate({ content: inputContent.trim() });
+    } else {
+      // Multiple inputs - process each line
+      lines.forEach((line) => {
+        if (line.trim()) {
+          addInputMutation.mutate({ content: line.trim() });
+        }
+      });
+    }
+  };
+
+  const handleSearch = () => {
+    if (!searchQuery.trim()) return;
+    smartSearchMutation.mutate({ query: searchQuery.trim() });
   };
 
   const formatTimeAgo = (dateString: string) => {
@@ -131,14 +215,8 @@ export default function Dashboard() {
                 <span className="text-primary border-b-2 border-primary pb-4 mb-[-1px] px-1 text-sm font-medium">
                   Dashboard
                 </span>
-                <Link href="/add" className="text-gray-500 hover:text-gray-700 pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
-                  Add Input
-                </Link>
                 <Link href="/search" className="text-gray-500 hover:text-gray-700 pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
                   Search
-                </Link>
-                <Link href="/smart-search" className="text-gray-500 hover:text-gray-700 pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
-                  Smart Search
                 </Link>
                 <Link href="/query-history" className="text-gray-500 hover:text-gray-700 pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
                   Query History
@@ -148,192 +226,202 @@ export default function Dashboard() {
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-600">{user?.username}</span>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={handleLogout}
-                className="text-gray-500 hover:text-gray-700"
+                className="flex items-center space-x-2"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="w-4 h-4" />
+                <span>Logout</span>
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Mobile Navigation */}
-      <div className="md:hidden bg-white border-b border-gray-200">
-        <div className="px-4 py-2">
-          <div className="flex space-x-2">
-            <Button className="flex-1 text-xs font-medium text-primary bg-blue-50">
-              Dashboard
-            </Button>
-            <Link href="/add" className="flex-1">
-              <Button variant="ghost" className="w-full text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                Add
-              </Button>
-            </Link>
-            <Link href="/search" className="flex-1">
-              <Button variant="ghost" className="w-full text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                Search
-              </Button>
-            </Link>
-            <Link href="/smart-search" className="flex-1">
-              <Button variant="ghost" className="w-full text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50">
-                Smart
-              </Button>
-            </Link>
-          </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Add Input Section */}
+        <div className="mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <Plus className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold">Add New Input</h2>
+              </div>
+              <div className="space-y-4">
+                <Textarea
+                  placeholder="Enter your knowledge (press Enter to submit, Cmd/Ctrl+Enter for new line)"
+                  value={inputContent}
+                  onChange={(e) => setInputContent(e.target.value)}
+                  onKeyDown={handleInputKeyDown}
+                  className="min-h-[100px]"
+                />
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-gray-500">
+                    Press Enter to submit • Cmd/Ctrl+Enter for new line • Multiple lines = multiple inputs
+                  </p>
+                  <Button
+                    onClick={handleSubmitInput}
+                    disabled={!inputContent.trim() || addInputMutation.isPending}
+                    className="flex items-center space-x-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>{addInputMutation.isPending ? "Saving..." : "Save"}</span>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Smart Search Section */}
+        <div className="mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <Sparkles className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold">Smart Search</h2>
+              </div>
+              <div className="space-y-4">
+                <Input
+                  placeholder="Ask a question about your knowledge (press Enter to search)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                />
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-gray-500">
+                    Press Enter to search • Try: "who are my favorite artists?" or "what do I love?"
+                  </p>
+                  <Button
+                    onClick={handleSearch}
+                    disabled={!searchQuery.trim() || smartSearchMutation.isPending}
+                    className="flex items-center space-x-2"
+                  >
+                    <SearchIcon className="w-4 h-4" />
+                    <span>{smartSearchMutation.isPending ? "Searching..." : "Search"}</span>
+                  </Button>
+                </div>
+                
+                {/* Search Results */}
+                {searchResults && (
+                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <h3 className="font-medium mb-2">Search Results:</h3>
+                    <div className="space-y-2">
+                      {searchResults.answers.map((answer, index) => (
+                        <p key={index} className="text-gray-700 bg-white p-3 rounded border">
+                          {answer}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <Database className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">{stats?.totalInputs || 0}</h3>
+                  <p className="text-sm text-gray-600">Total Inputs</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <Search className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">{stats?.totalQueries || 0}</h3>
+                  <p className="text-sm text-gray-600">Total Queries</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <Calendar className="w-6 h-6 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">{stats?.thisWeekInputs || 0}</h3>
+                  <p className="text-sm text-gray-600">This Week</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Inputs */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Recent Inputs</h3>
+                <Link href="/search" className="text-sm text-primary hover:underline">
+                  View all
+                </Link>
+              </div>
+              <div className="space-y-3">
+                {recentInputs && recentInputs.length > 0 ? (
+                  recentInputs.slice(0, 5).map((input) => (
+                    <div key={input.id} className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-900 mb-1">{input.content}</p>
+                      <p className="text-xs text-gray-500">{formatTimeAgo(input.createdAt)}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-sm">No inputs yet</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Recent Queries */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Recent Queries</h3>
+                <Link href="/query-history" className="text-sm text-primary hover:underline">
+                  View all
+                </Link>
+              </div>
+              <div className="space-y-3">
+                {recentQueries && recentQueries.length > 0 ? (
+                  recentQueries.slice(0, 5).map((query) => (
+                    <div key={query.id} className="p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-900 mb-1">{query.query}</p>
+                      <div className="flex justify-between items-center">
+                        <p className="text-xs text-gray-500">{formatTimeAgo(query.createdAt)}</p>
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                          {query.resultCount} results
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-sm">No queries yet</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-6">
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="shadow-sm border border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-primary bg-opacity-10 rounded-lg">
-                    <Database className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Inputs</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stats?.totalInputs || 0}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-cyan-100 rounded-lg">
-                    <Search className="h-5 w-5 text-cyan-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Queries</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stats?.totalQueries || 0}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm border border-gray-200">
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <Calendar className="h-5 w-5 text-green-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">This Week</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {stats?.thisWeekInputs || 0}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Recent Activity */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Recent Inputs */}
-            <Card className="shadow-sm border border-gray-200">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Recent Inputs</h3>
-              </div>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {recentInputs && recentInputs.length > 0 ? (
-                    recentInputs.map((input) => (
-                      <div key={input.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-900 leading-relaxed line-clamp-2">
-                            {input.content}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {formatTimeAgo(input.createdAt)}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8">
-                      <Plus className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">No inputs yet</p>
-                      <Link href="/add">
-                        <Button variant="link" className="text-primary hover:text-blue-700 text-sm">
-                          Add your first input
-                        </Button>
-                      </Link>
-                    </div>
-                  )}
-                  {recentInputs && recentInputs.length > 0 && (
-                    <div className="pt-2">
-                      <Link href="/search">
-                        <Button variant="link" className="text-sm text-primary hover:text-blue-700 font-medium p-0">
-                          View all inputs <ArrowRight className="h-3 w-3 ml-1" />
-                        </Button>
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Queries */}
-            <Card className="shadow-sm border border-gray-200">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Recent Queries</h3>
-              </div>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {recentQueries && recentQueries.length > 0 ? (
-                    recentQueries.map((query) => (
-                      <div key={query.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                        <div className="p-1 bg-cyan-100 rounded">
-                          <SearchIcon className="h-3 w-3 text-cyan-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-900 font-medium">{query.query}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            <span>{query.resultCount} result{query.resultCount !== 1 ? 's' : ''}</span> • <span>{formatTimeAgo(query.createdAt)}</span>
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8">
-                      <SearchIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">No queries yet</p>
-                      <Link href="/search">
-                        <Button variant="link" className="text-primary hover:text-blue-700 text-sm">
-                          Start searching
-                        </Button>
-                      </Link>
-                    </div>
-                  )}
-                  {recentQueries && recentQueries.length > 0 && (
-                    <div className="pt-2">
-                      <Link href="/search">
-                        <Button variant="link" className="text-sm text-primary hover:text-blue-700 font-medium p-0">
-                          View query history <ArrowRight className="h-3 w-3 ml-1" />
-                        </Button>
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </main>
     </div>
   );
 }
