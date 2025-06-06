@@ -24,6 +24,7 @@ Rules:
 4. Create one triple for each unique relationship between entities
 5. Be precise with relationship descriptions
 6. Return valid JSON array only
+7. SPECIAL RULE: When the input describes something using "to be" verbs (is, are, was, were) or makes descriptive claims about entities without an explicit subject, assume the user is making the claim. Use "<user>" as source and prefix the relationship with "claims" or "says".
 
 Examples:
 Input: "Jake Owen is my favorite country artist"
@@ -35,8 +36,17 @@ Output: [{"sourceEntity": "<user>'s girlfriend", "relationship": "has crush on",
 Input: "I love Thomas Rhett and his music is amazing"
 Output: [
   {"sourceEntity": "<user>", "relationship": "loves", "targetEntity": "Thomas Rhett"},
-  {"sourceEntity": "Thomas Rhett's music", "relationship": "is", "targetEntity": "amazing"}
+  {"sourceEntity": "<user>", "relationship": "claims music is amazing", "targetEntity": "Thomas Rhett's music"}
 ]
+
+Input: "the food at Mario's is too spicy"
+Output: [{"sourceEntity": "<user>", "relationship": "claims is too spicy", "targetEntity": "the food at Mario's"}]
+
+Input: "Carie from work is manipulative"
+Output: [{"sourceEntity": "<user>", "relationship": "claims is manipulative", "targetEntity": "Carie from work"}]
+
+Input: "the unagi at crazy fish is too saucy"
+Output: [{"sourceEntity": "<user>", "relationship": "claims is too saucy", "targetEntity": "the unagi at crazy fish"}]
 
 Now parse this input: "${input}"`;
 
@@ -349,11 +359,13 @@ Rules for entity extraction:
 3. When "my" is used, the user (<user>) is one entity
 4. "Who", "what", "where" questions often seek information about relationships involving the user
 5. Handle possessives properly (e.g., "my girlfriend" becomes "<user>'s girlfriend" as a separate entity)
+6. SPECIAL RULE: For queries about descriptive claims (asking about what is too spicy, manipulative, etc.), assume the user made those claims. Use "<user>" as the source entity for "claims" relationships.
 
 Rules for relationship extraction:
 1. Extract the core relationship/connection being queried
 2. Focus on the action, attribute, or connection being asked about
 3. Remove question words (who, what, where, when) from the relationship
+4. For descriptive queries about claims, prefix with "claims" (e.g., "claims is too spicy", "claims is manipulative")
 
 Examples:
 Query: "who will I marry?"
@@ -373,6 +385,12 @@ Output: {"entities": ["<user>'s girlfriend"], "relationship": "loves"}
 
 Query: "what does Jake Owen do?"
 Output: {"entities": ["Jake Owen"], "relationship": "does"}
+
+Query: "what food is too spicy?"
+Output: {"entities": ["<user>"], "relationship": "claims is too spicy"}
+
+Query: "who is manipulative?"
+Output: {"entities": ["<user>"], "relationship": "claims is manipulative"}
 
 Now parse this query: "${query}"`;
 
