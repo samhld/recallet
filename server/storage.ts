@@ -127,71 +127,133 @@ export class DatabaseStorage implements IStorage {
     originalInputs: string[];
     targetEntities: string[];
   }> {
-    console.log("🔍 Entity + Relationship Combined Search:");
+    console.log("🔍 Enhanced Knowledge Graph Search:");
     console.log("📊 User ID:", userId);
     console.log("🎯 Entities to search for:", entities);
-    console.log("🔗 Must match BOTH entity AND relationship similarity");
     
     if (entities.length === 0) {
       return { originalInputs: [], targetEntities: [] };
     }
 
-    // Search relationships table where entity matches AND relationship is similar
-    const embeddingVector = `[${relationshipEmbedding.join(',')}]`;
+    // Step 1: Entity Resolution
+    let startingEntityId: number | null = null;
+    const queryEntity = entities[0]; // Use first entity as primary
     
-    let entityQuery = '';
-    if (entities.length === 1) {
-      entityQuery = `AND (e1.name = '${entities[0]}' OR e2.name = '${entities[0]}')`;
-    } else {
-      const conditions = entities.map(entity => `e1.name = '${entity}' OR e2.name = '${entity}'`).join(' OR ');
-      entityQuery = `AND (${conditions})`;
-    }
-    
-    const queryResult = await db.execute(sql`
-      SELECT 
-        e1.name as source_entity,
-        e2.name as target_entity,
-        r.relationship,
-        r.original_input,
-        cosine_distance(r.relationship_vec, ${embeddingVector}::vector) as distance
-      FROM relationships r
-      INNER JOIN entities e1 ON r.source_entity_id = e1.id
-      INNER JOIN entities e2 ON r.target_entity_id = e2.id
-      WHERE r.user_id = ${userId} ${sql.raw(entityQuery)}
-        AND cosine_distance(r.relationship_vec, ${embeddingVector}::vector) < 0.7
-      ORDER BY cosine_distance(r.relationship_vec, ${embeddingVector}::vector)
-      LIMIT 5
+    // Check if entity exists exactly in user's data
+    const exactMatch = await db.execute(sql`
+      SELECT id, name FROM entities 
+      WHERE user_id = ${userId} AND name = ${queryEntity}
+      LIMIT 1
     `);
     
-    console.log("🔍 Combined search results:", queryResult.rows.map(row => ({
-      source_entity: row.source_entity,
-      target_entity: row.target_entity,
-      relationship: row.relationship,
-      distance: row.distance,
-      original_input: row.original_input
-    })));
+    if (exactMatch.rows.length > 0) {
+      startingEntityId = exactMatch.rows[0].id as number;
+      console.log(`📌 Found exact entity match: ${queryEntity} (id: ${startingEntityId})`);
+    } else {
+      // Find best matching entity using description embedding
+      const entityEmbedding = await this.createEntityEmbedding(queryEntity);
+      const entityEmbeddingVector = `[${entityEmbedding.join(',')}]`;
+      
+      const similarEntities = await db.execute(sql`
+        SELECT id, name, description, 
+               cosine_distance(description_vec, ${entityEmbeddingVector}::vector) as distance
+        FROM entities 
+        WHERE user_id = ${userId}
+        ORDER BY cosine_distance(description_vec, ${entityEmbeddingVector}::vector)
+        LIMIT 5
+      `);
+      
+      if (similarEntities.rows.length > 0) {
+        startingEntityId = similarEntities.rows[0].id as number;
+        console.log(`📌 Found similar entity: ${similarEntities.rows[0].name} (id: ${startingEntityId}, distance: ${similarEntities.rows[0].distance})`);
+      }
+    }
     
-    const results = queryResult.rows.map(row => ({
-      sourceEntity: row.source_entity as string,
-      targetEntity: row.target_entity as string,
-      relationship: row.relationship as string,
-      originalInput: row.original_input as string,
-      distance: row.distance as number
-    }));
-
+    if (!startingEntityId) {
+      console.log("❌ No starting entity found, returning empty results");
+      return { originalInputs: [], targetEntities: [] };
+    }
+    
+    // Step 2: Graph Walk (2 edges)
+    console.log("🚶 Walking graph from entity id:", startingEntityId);
+    
+    // First edge: direct relationships from starting entity
+    const firstEdgeQuery = await db.execute(sql`
+      SELECT r.id, r.relationship, r.relationship_desc, r.relationship_desc_vec, 
+             r.original_input, r.target_entity_id,
+             e2.name as target_entity_name
+      FROM relationships r
+      INNER JOIN entities e2 ON r.target_entity_id = e2.id
+      WHERE r.user_id = ${userId} AND r.source_entity_id = ${startingEntityId}
+    `);
+    
+    // Second edge: relationships from first-edge targets
+    const firstEdgeTargets = firstEdgeQuery.rows.map(row => row.target_entity_id);
+    let secondEdgeQuery: any = { rows: [] };
+    
+    if (firstEdgeTargets.length > 0) {
+      const targetIdsStr = firstEdgeTargets.join(',');
+      secondEdgeQuery = await db.execute(sql`
+        SELECT r.id, r.relationship, r.relationship_desc, r.relationship_desc_vec,
+               r.original_input, r.target_entity_id,
+               e2.name as target_entity_name
+        FROM relationships r
+        INNER JOIN entities e2 ON r.target_entity_id = e2.id
+        WHERE r.user_id = ${userId} AND r.source_entity_id IN (${sql.raw(targetIdsStr)})
+      `);
+    }
+    
+    // Combine all discovered relationships
+    const allRelationships = [...firstEdgeQuery.rows, ...secondEdgeQuery.rows];
+    console.log(`🔗 Found ${firstEdgeQuery.rows.length} first-edge and ${secondEdgeQuery.rows.length} second-edge relationships`);
+    
+    if (allRelationships.length === 0) {
+      console.log("❌ No relationships found in graph walk");
+      return { originalInputs: [], targetEntities: [] };
+    }
+    
+    // Step 3: Relationship Embedding Match with Statistical Filtering
+    const relationshipDistances = allRelationships.map(rel => {
+      const relDescVec = rel.relationship_desc_vec;
+      if (!relDescVec) return { ...rel, distance: 1.0 };
+      
+      // Calculate cosine distance against relationship_desc_vec
+      const distance = this.calculateCosineDistance(relationshipEmbedding, relDescVec);
+      return { ...rel, distance };
+    }).filter(rel => rel.distance < 0.76); // Only keep good matches (>0.24 similarity)
+    
+    if (relationshipDistances.length === 0) {
+      console.log("❌ No relationships passed distance threshold");
+      return { originalInputs: [], targetEntities: [] };
+    }
+    
+    // Calculate statistics for filtering
+    const distances = relationshipDistances.map(rel => rel.distance);
+    const mean = distances.reduce((sum, d) => sum + d, 0) / distances.length;
+    const variance = distances.reduce((sum, d) => sum + Math.pow(d - mean, 2), 0) / distances.length;
+    const stdDev = Math.sqrt(variance);
+    const threshold = mean - stdDev; // 1 standard deviation better than mean
+    
+    console.log(`📊 Distance stats - Mean: ${mean.toFixed(4)}, StdDev: ${stdDev.toFixed(4)}, Threshold: ${threshold.toFixed(4)}`);
+    
+    // Filter results by statistical threshold
+    const filteredResults = relationshipDistances.filter(rel => rel.distance <= threshold);
+    
+    console.log(`🎯 ${filteredResults.length} relationships passed statistical filtering`);
+    
     const originalInputsSet = new Set<string>();
     const targetEntitiesSet = new Set<string>();
-
-    for (const result of results) {
-      originalInputsSet.add(result.originalInput);
-      targetEntitiesSet.add(result.targetEntity);
+    
+    for (const result of filteredResults) {
+      originalInputsSet.add(result.original_input);
+      targetEntitiesSet.add(result.target_entity_name);
     }
-
+    
     const originalInputs = Array.from(originalInputsSet);
     const targetEntities = Array.from(targetEntitiesSet);
-
-    console.log("✅ Combined search found:", originalInputs.length, "inputs and", targetEntities.length, "entities");
-
+    
+    console.log("✅ Enhanced search found:", originalInputs.length, "inputs and", targetEntities.length, "entities");
+    
     return {
       originalInputs,
       targetEntities,
@@ -488,6 +550,49 @@ export class DatabaseStorage implements IStorage {
       console.error("❌ Error searching relationships by embedding:", error);
       throw error;
     }
+  }
+
+  private calculateCosineDistance(vec1: number[], vec2: any): number {
+    try {
+      // Handle PostgreSQL vector format
+      let vector2: number[];
+      if (typeof vec2 === 'string') {
+        // Parse PostgreSQL vector format like "[0.1, 0.2, ...]"
+        const cleanStr = vec2.replace(/^\[|\]$/g, '');
+        vector2 = cleanStr.split(',').map(s => parseFloat(s.trim()));
+      } else if (Array.isArray(vec2)) {
+        vector2 = vec2;
+      } else {
+        return 1.0; // Maximum distance for invalid vectors
+      }
+      
+      if (vec1.length !== vector2.length) {
+        return 1.0;
+      }
+      
+      // Calculate cosine similarity then convert to distance
+      let dotProduct = 0;
+      let norm1 = 0;
+      let norm2 = 0;
+      
+      for (let i = 0; i < vec1.length; i++) {
+        dotProduct += vec1[i] * vector2[i];
+        norm1 += vec1[i] * vec1[i];
+        norm2 += vector2[i] * vector2[i];
+      }
+      
+      const similarity = dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+      return 1 - similarity; // Convert similarity to distance
+    } catch (error) {
+      console.error("Error calculating cosine distance:", error);
+      return 1.0;
+    }
+  }
+  
+  private async createEntityEmbedding(entityName: string): Promise<number[]> {
+    // Import the embedding creation function from llm.ts
+    const { createEmbedding } = await import('./llm.js');
+    return await createEmbedding(entityName);
   }
 }
 
