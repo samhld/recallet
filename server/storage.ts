@@ -232,11 +232,11 @@ export class DatabaseStorage implements IStorage {
     const mean = distances.reduce((sum, d) => sum + d, 0) / distances.length;
     const variance = distances.reduce((sum, d) => sum + Math.pow(d - mean, 2), 0) / distances.length;
     const stdDev = Math.sqrt(variance);
-    const threshold = mean - stdDev; // 1 standard deviation better than mean
+    const threshold = mean + stdDev; // 1 standard deviation greater than mean (since lower distance = better match)
     
     console.log(`📊 Distance stats - Mean: ${mean.toFixed(4)}, StdDev: ${stdDev.toFixed(4)}, Threshold: ${threshold.toFixed(4)}`);
     
-    // Filter results by statistical threshold
+    // Filter results by statistical threshold (keep distances at most 1 std dev greater than mean)
     const filteredResults = relationshipDistances.filter(rel => rel.distance <= threshold);
     
     console.log(`🎯 ${filteredResults.length} relationships passed statistical filtering`);
