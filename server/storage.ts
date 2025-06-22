@@ -139,6 +139,8 @@ export class DatabaseStorage implements IStorage {
     let startingEntityId: number | null = null;
     const queryEntity = entities[0]; // Use first entity as primary
     
+    console.log(`🔍 Resolving entity: "${queryEntity}" for user ${userId}`);
+    
     // Check if entity exists exactly in user's data
     const exactMatch = await db.execute(sql`
       SELECT id, name FROM entities 
@@ -151,6 +153,7 @@ export class DatabaseStorage implements IStorage {
       console.log(`📌 Found exact entity match: ${queryEntity} (id: ${startingEntityId})`);
     } else {
       // Find best matching entity using description embedding
+      console.log(`🔍 No exact match for "${queryEntity}", searching by description similarity`);
       const entityEmbedding = await this.createEntityEmbedding(queryEntity);
       const entityEmbeddingVector = `[${entityEmbedding.join(',')}]`;
       
@@ -166,6 +169,8 @@ export class DatabaseStorage implements IStorage {
       if (similarEntities.rows.length > 0) {
         startingEntityId = similarEntities.rows[0].id as number;
         console.log(`📌 Found similar entity: ${similarEntities.rows[0].name} (id: ${startingEntityId}, distance: ${similarEntities.rows[0].distance})`);
+      } else {
+        console.log(`❌ No similar entities found for "${queryEntity}"`);
       }
     }
     
