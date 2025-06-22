@@ -56,6 +56,21 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
+  // Graceful shutdown handling for database connections
+  process.on('SIGINT', async () => {
+    console.log('Received SIGINT, closing database connections...');
+    const { closePool } = await import('./db.js');
+    await closePool();
+    process.exit(0);
+  });
+
+  process.on('SIGTERM', async () => {
+    console.log('Received SIGTERM, closing database connections...');
+    const { closePool } = await import('./db.js');
+    await closePool();
+    process.exit(0);
+  });
+
   // ALWAYS serve the app on port 5000
   // this serves both the API and the client.
   // It is the only port that is not firewalled.

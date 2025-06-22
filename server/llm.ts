@@ -24,7 +24,7 @@ Rules:
 4. Create one triple for each unique relationship between entities
 5. Be precise with relationship descriptions
 6. Return valid JSON array only
-7. SPECIAL RULE: When the input describes something using "to be" verbs (is, are, was, were) or makes descriptive claims about entities without an explicit subject, assume the user is making the claim. Use "<user>" as source and prefix the relationship with "claims" or "says".
+7. SPECIAL RULE: When the input contains entities describing something subjectively ("is fat", "is annoying", "is beautiful", "is delicious", "has long arms", "was too tired", "had a good head on his shoulders", etc.). If the entity is the user, inject the user into it (e.g. "<restaurant> has delicious food" becomes "<user> says <restaurant> has delicious food").
 
 Examples:
 Input: "Jake Owen is my favorite country artist"
@@ -40,13 +40,13 @@ Output: [
 ]
 
 Input: "the food at Mario's is too spicy"
-Output: [{"sourceEntity": "<user>", "relationship": "claims is too spicy", "targetEntity": "the food at Mario's"}]
+Output: [{"sourceEntity": "<user>", "relationship": "says is too spicy", "targetEntity": "the food at Mario's"}]
 
 Input: "Carie from work is manipulative"
 Output: [{"sourceEntity": "<user>", "relationship": "claims is manipulative", "targetEntity": "Carie from work"}]
 
 Input: "the unagi at crazy fish is too saucy"
-Output: [{"sourceEntity": "<user>", "relationship": "claims is too saucy", "targetEntity": "the unagi at crazy fish"}]
+Output: [{"sourceEntity": "<user>", "relationship": "says is too saucy", "targetEntity": "the unagi at crazy fish"}]
 
 Now parse this input: "${input}"`;
 
@@ -109,7 +109,7 @@ Now parse this input: "${input}"`;
 export async function generateRelationshipDescription(
   sourceEntity: string,
   relationship: string,
-  targetEntity: string
+  targetEntity: string,
 ): Promise<string> {
   try {
     const prompt = `Generate a semantic description of ONLY this specific relationship. Focus purely on what the relationship "${relationship}" means between these entities. Do not add external context.
@@ -139,15 +139,16 @@ Now generate a description for the relationship "${relationship}": ${sourceEntit
       messages: [
         {
           role: "system",
-          content: "You are an expert at creating semantic descriptions of relationships between entities. Generate detailed, meaningful descriptions that capture the full context and nuance of relationships."
+          content:
+            "You are an expert at creating semantic descriptions of relationships between entities. Generate detailed, meaningful descriptions that capture the full context and nuance of relationships.",
         },
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       temperature: 0.1,
-      max_tokens: 150
+      max_tokens: 150,
     });
 
     const description = response.choices[0].message.content?.trim();
@@ -213,7 +214,8 @@ Now generate a description for: "${entityName}"`;
       messages: [
         {
           role: "system",
-          content: "You are an expert at generating concise, factual descriptions for entities in a personal knowledge base.",
+          content:
+            "You are an expert at generating concise, factual descriptions for entities in a personal knowledge base.",
         },
         {
           role: "user",
@@ -237,7 +239,7 @@ Now generate a description for: "${entityName}"`;
 
 export async function synthesizeAnswerFromContext(
   query: string,
-  originalInputs: string[]
+  originalInputs: string[],
 ): Promise<string> {
   if (originalInputs.length === 0) {
     return "No relevant information found in your knowledge base.";
@@ -246,7 +248,7 @@ export async function synthesizeAnswerFromContext(
   const prompt = `Question: "${query}"
 
 Context from knowledge base:
-${originalInputs.map((input, index) => `${index + 1}. "${input}"`).join('\n')}
+${originalInputs.map((input, index) => `${index + 1}. "${input}"`).join("\n")}
 
 Based on this context, provide a direct, helpful answer to the question. If the context contains comparative information (like "more than", "less than", "most", "favorite"), use that to give a precise answer. Keep your response concise and natural.`;
 
@@ -260,15 +262,16 @@ Based on this context, provide a direct, helpful answer to the question. If the 
       messages: [
         {
           role: "system",
-          content: "You are an expert at analyzing personal knowledge and providing direct, helpful answers based on context. Always use the provided context to give accurate, specific responses."
+          content:
+            "You are an expert at analyzing personal knowledge and providing direct, helpful answers based on context. Always use the provided context to give accurate, specific responses.",
         },
         {
           role: "user",
-          content: prompt
-        }
+          content: prompt,
+        },
       ],
       temperature: 0.1,
-      max_tokens: 200
+      max_tokens: 200,
     });
 
     const answer = response.choices[0].message.content?.trim();
@@ -288,10 +291,10 @@ export async function detectExistingEntitiesForContextUpdate(
   relationships: EntityRelationship[],
   userId: number,
   username: string,
-  originalInput: string
+  originalInput: string,
 ): Promise<void> {
   const { storage } = await import("./storage");
-  
+
   console.log("\n🔍 === ENTITY CONTEXT UPDATE DETECTION START ===");
   console.log("📝 Original input:", originalInput);
   console.log("🎯 Relationships to check:", relationships);
@@ -300,46 +303,64 @@ export async function detectExistingEntitiesForContextUpdate(
     try {
       // Create structured context from the relationship
       const relationshipContext = `${rel.sourceEntity} ${rel.relationship} ${rel.targetEntity}`;
-      
+
       // Check if source entity exists
-      const sourceEntityExists = await checkEntityExists(userId, rel.sourceEntity);
+      const sourceEntityExists = await checkEntityExists(
+        userId,
+        rel.sourceEntity,
+      );
       if (sourceEntityExists) {
-        console.log(`✅ Source entity "${rel.sourceEntity}" exists, updating context with: ${relationshipContext}`);
-        await storage.updateEntityContext(userId, rel.sourceEntity, relationshipContext, username);
+        console.log(
+          `✅ Source entity "${rel.sourceEntity}" exists, updating context with: ${relationshipContext}`,
+        );
+        await storage.updateEntityContext(
+          userId,
+          rel.sourceEntity,
+          relationshipContext,
+          username,
+        );
       }
 
       // Check if target entity exists
-      const targetEntityExists = await checkEntityExists(userId, rel.targetEntity);
+      const targetEntityExists = await checkEntityExists(
+        userId,
+        rel.targetEntity,
+      );
       if (targetEntityExists) {
-        console.log(`✅ Target entity "${rel.targetEntity}" exists, updating context with: ${relationshipContext}`);
-        await storage.updateEntityContext(userId, rel.targetEntity, relationshipContext, username);
+        console.log(
+          `✅ Target entity "${rel.targetEntity}" exists, updating context with: ${relationshipContext}`,
+        );
+        await storage.updateEntityContext(
+          userId,
+          rel.targetEntity,
+          relationshipContext,
+          username,
+        );
       }
     } catch (error) {
       console.error(`❌ Error updating entity context:`, error);
       // Continue processing other entities even if one fails
     }
   }
-  
+
   console.log("🔍 === ENTITY CONTEXT UPDATE DETECTION END ===\n");
 }
 
-async function checkEntityExists(userId: number, entityName: string): Promise<boolean> {
+async function checkEntityExists(
+  userId: number,
+  entityName: string,
+): Promise<boolean> {
   const { storage } = await import("./storage");
   const { db } = await import("./db");
   const { entities } = await import("@shared/schema");
   const { eq, and } = await import("drizzle-orm");
-  
+
   try {
     const [existingEntity] = await db
       .select()
       .from(entities)
-      .where(
-        and(
-          eq(entities.userId, userId),
-          eq(entities.name, entityName)
-        )
-      );
-    
+      .where(and(eq(entities.userId, userId), eq(entities.name, entityName)));
+
     return !!existingEntity;
   } catch (error) {
     console.error(`Error checking if entity exists: ${entityName}`, error);

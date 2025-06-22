@@ -11,5 +11,26 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Singleton pool to prevent multiple WebSocket connections
+let globalPool: Pool | null = null;
+
+export function getPool(): Pool {
+  if (!globalPool) {
+    globalPool = new Pool({ 
+      connectionString: process.env.DATABASE_URL,
+      max: 1, // Limit to single connection for serverless
+    });
+  }
+  return globalPool;
+}
+
+export const pool = getPool();
 export const db = drizzle({ client: pool, schema });
+
+// Cleanup function for graceful shutdown
+export async function closePool(): Promise<void> {
+  if (globalPool) {
+    await globalPool.end();
+    globalPool = null;
+  }
+}
