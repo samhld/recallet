@@ -1,9 +1,6 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
-
-neonConfig.webSocketConstructor = ws;
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -11,21 +8,23 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Singleton pool to prevent multiple WebSocket connections
+// Singleton pool to prevent multiple connections
 let globalPool: Pool | null = null;
 
 export function getPool(): Pool {
   if (!globalPool) {
     globalPool = new Pool({ 
       connectionString: process.env.DATABASE_URL,
-      max: 1, // Limit to single connection for serverless
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
     });
   }
   return globalPool;
 }
 
 export const pool = getPool();
-export const db = drizzle({ client: pool, schema });
+export const db = drizzle(pool, { schema });
 
 // Cleanup function for graceful shutdown
 export async function closePool(): Promise<void> {
