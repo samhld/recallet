@@ -181,7 +181,7 @@ export default function QueryHistoryPage() {
           {/* Page Header */}
           <div className="flex items-center space-x-3">
             <History className="h-6 w-6 text-primary" />
-            <h2 className="text-2xl font-bold text-gray-900">Query History</h2>
+            <h2 className="text-2xl font-bold text-foreground">Query History</h2>
           </div>
 
           {/* Query List */}
@@ -196,7 +196,7 @@ export default function QueryHistoryPage() {
                 const isExpanded = expandedQueries.has(query.id);
                 
                 return (
-                  <Card key={query.id} className="shadow-sm border border-gray-200">
+                  <Card key={query.id} className="shadow-sm border border-border">
                     <Collapsible>
                       <CollapsibleTrigger 
                         className="w-full p-0"
@@ -206,13 +206,13 @@ export default function QueryHistoryPage() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
                               {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-gray-400" />
+                                <ChevronDown className="h-4 w-4 text-foreground/50" />
                               ) : (
-                                <ChevronRight className="h-4 w-4 text-gray-400" />
+                                <ChevronRight className="h-4 w-4 text-foreground/50" />
                               )}
                               <div className="text-left">
-                                <p className="font-medium text-gray-900">{query.query}</p>
-                                <p className="text-sm text-gray-500">{formatDate(query.createdAt)}</p>
+                                <p className="font-medium text-foreground">{query.query}</p>
+                                <p className="text-sm text-foreground/70">{formatDate(query.createdAt)}</p>
                               </div>
                             </div>
                             <div className="flex items-center space-x-3">

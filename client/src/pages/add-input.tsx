@@ -187,16 +187,16 @@ export default function AddInput() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="max-w-2xl mx-auto">
-          <Card className="shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Add New Input</h2>
-              <p className="text-sm text-gray-600 mt-1">Store information that you can query later</p>
+          <Card className="shadow-sm border border-border">
+            <div className="p-6 border-b border-border">
+              <h2 className="text-xl font-semibold text-foreground">Add New Input</h2>
+              <p className="text-sm text-foreground/70 mt-1">Store information that you can query later</p>
             </div>
             <CardContent className="p-6">
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">
-                    Category <span className="text-gray-400">(optional)</span>
+                  <Label className="text-sm font-medium text-foreground">
+                    Category <span className="text-foreground/50">(optional)</span>
                   </Label>
                   <Select value={category} onValueChange={setCategory}>
                     <SelectTrigger className="focus:ring-2 focus:ring-primary focus:border-transparent">
@@ -214,8 +214,8 @@ export default function AddInput() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">
-                    Tags <span className="text-gray-400">(optional)</span>
+                  <Label className="text-sm font-medium text-foreground">
+                    Tags <span className="text-foreground/50">(optional)</span>
                   </Label>
                   <Input
                     type="text"
@@ -224,11 +224,11 @@ export default function AddInput() {
                     placeholder="Enter tags separated by commas"
                     className="focus:ring-2 focus:ring-primary focus:border-transparent"
                   />
-                  <p className="text-xs text-gray-500">Use tags to make your content easier to find</p>
+                  <p className="text-xs text-foreground/70">Use tags to make your content easier to find</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium text-gray-700">Content</Label>
+                  <Label className="text-sm font-medium text-foreground">Content</Label>
                   <Textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
@@ -237,7 +237,7 @@ export default function AddInput() {
                     className="focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
                     required
                   />
-                  <p className="text-xs text-gray-500">Be specific and detailed to improve search results</p>
+                  <p className="text-xs text-foreground/70">Be specific and detailed to improve search results</p>
                 </div>
 
                 <div className="flex space-x-3">

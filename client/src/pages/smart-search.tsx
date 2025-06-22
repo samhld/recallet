@@ -185,19 +185,19 @@ export default function SmartSearchPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-6">
           {/* Search Interface */}
-          <Card className="shadow-sm border border-gray-200">
+          <Card className="shadow-sm border border-border">
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-2 flex items-center">
+                  <h2 className="text-xl font-semibold text-foreground mb-2 flex items-center">
                     <Brain className="h-5 w-5 mr-2 text-primary" />
                     Smart Search
                   </h2>
-                  <p className="text-sm text-gray-600">Ask natural language questions about your knowledge base</p>
+                  <p className="text-sm text-foreground/70">Ask natural language questions about your knowledge base</p>
                 </div>
                 <form onSubmit={handleSearch} className="flex space-x-3">
                   <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-foreground/50" />
                     <Input
                       type="text"
                       value={query}
@@ -229,18 +229,18 @@ export default function SmartSearchPage() {
           {hasSearched && result && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-foreground">
                   Smart Search Results
                 </h3>
               </div>
 
               {/* Query Analysis */}
-              <Card className="shadow-sm border border-gray-200">
+              <Card className="shadow-sm border border-border">
                 <CardContent className="p-6">
-                  <h4 className="font-medium text-gray-900 mb-3">Query Analysis</h4>
+                  <h4 className="font-medium text-foreground mb-3">Query Analysis</h4>
                   <div className="space-y-2">
                     <div>
-                      <span className="text-sm font-medium text-gray-600">Entities: </span>
+                      <span className="text-sm font-medium text-foreground/70">Entities: </span>
                       {result.entities.map((entity, index) => (
                         <Badge key={index} variant="secondary" className="mr-2">
                           {entity}

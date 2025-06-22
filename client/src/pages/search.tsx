@@ -214,16 +214,16 @@ export default function SearchPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-6">
           {/* Search Interface */}
-          <Card className="shadow-sm border border-gray-200">
+          <Card className="shadow-sm border border-border">
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-2">Search Your Knowledge Base</h2>
-                  <p className="text-sm text-gray-600">Find information from your stored inputs using keywords</p>
+                  <h2 className="text-xl font-semibold text-foreground mb-2">Search Your Knowledge Base</h2>
+                  <p className="text-sm text-foreground/70">Find information from your stored inputs using keywords</p>
                 </div>
                 <form onSubmit={handleSearch} className="flex space-x-3">
                   <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-foreground/50" />
                     <Input
                       type="text"
                       value={query}
@@ -272,9 +272,9 @@ export default function SearchPage() {
           {hasSearched && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-foreground">
                   Search Results
-                  <span className="text-sm font-normal text-gray-500 ml-2">
+                  <span className="text-sm font-normal text-foreground/70 ml-2">
                     ({results.length} found)
                   </span>
                 </h3>
