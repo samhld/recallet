@@ -267,7 +267,7 @@ export default function Dashboard() {
                   className="min-h-[100px]"
                 />
                 <div className="flex justify-between items-center">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-foreground/70">
                     Press Enter to submit • Cmd/Ctrl+Enter for new line • Multiple lines = multiple inputs
                   </p>
                   <Button
@@ -300,7 +300,7 @@ export default function Dashboard() {
                   onKeyDown={handleSearchKeyDown}
                 />
                 <div className="flex justify-between items-center">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-foreground/70">
                     Press Enter to search • Try: "who are my favorite artists?" or "what do I love?"
                   </p>
                   <Button
@@ -315,11 +315,11 @@ export default function Dashboard() {
                 
                 {/* Search Results */}
                 {searchResults && (
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-medium mb-2">Search Results:</h3>
+                  <div className="mt-6 p-4 bg-card/50 rounded-lg border">
+                    <h3 className="font-medium mb-2 text-foreground">Search Results:</h3>
                     <div className="space-y-2">
                       {searchResults.answers.map((answer, index) => (
-                        <p key={index} className="text-gray-700 bg-white p-3 rounded border">
+                        <p key={index} className="text-foreground bg-card p-3 rounded border">
                           {answer}
                         </p>
                       ))}
@@ -340,8 +340,8 @@ export default function Dashboard() {
                   <Database className="w-6 h-6 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900">{stats?.totalInputs || 0}</h3>
-                  <p className="text-sm text-gray-600">Total Inputs</p>
+                  <h3 className="text-2xl font-bold text-foreground">{stats?.totalInputs || 0}</h3>
+                  <p className="text-sm text-foreground/70">Total Inputs</p>
                 </div>
               </div>
             </CardContent>
@@ -354,8 +354,8 @@ export default function Dashboard() {
                   <Search className="w-6 h-6 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900">{stats?.totalQueries || 0}</h3>
-                  <p className="text-sm text-gray-600">Total Queries</p>
+                  <h3 className="text-2xl font-bold text-foreground">{stats?.totalQueries || 0}</h3>
+                  <p className="text-sm text-foreground/70">Total Queries</p>
                 </div>
               </div>
             </CardContent>
@@ -368,8 +368,8 @@ export default function Dashboard() {
                   <Calendar className="w-6 h-6 text-purple-600" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900">{stats?.thisWeekInputs || 0}</h3>
-                  <p className="text-sm text-gray-600">This Week</p>
+                  <h3 className="text-2xl font-bold text-foreground">{stats?.thisWeekInputs || 0}</h3>
+                  <p className="text-sm text-foreground/70">This Week</p>
                 </div>
               </div>
             </CardContent>
@@ -390,13 +390,13 @@ export default function Dashboard() {
               <div className="space-y-3">
                 {recentInputs && recentInputs.length > 0 ? (
                   recentInputs.slice(0, 5).map((input) => (
-                    <div key={input.id} className="p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-900 mb-1">{input.content}</p>
-                      <p className="text-xs text-gray-500">{formatTimeAgo(input.createdAt)}</p>
+                    <div key={input.id} className="p-3 bg-card/50 rounded-lg border">
+                      <p className="text-sm text-foreground mb-1">{input.content}</p>
+                      <p className="text-xs text-foreground/70">{formatTimeAgo(input.createdAt)}</p>
                     </div>
                   ))
                 ) : (
-                  <p className="text-gray-500 text-sm">No inputs yet</p>
+                  <p className="text-foreground/70 text-sm">No inputs yet</p>
                 )}
               </div>
             </CardContent>
@@ -414,18 +414,18 @@ export default function Dashboard() {
               <div className="space-y-3">
                 {recentQueries && recentQueries.length > 0 ? (
                   recentQueries.slice(0, 5).map((query) => (
-                    <div key={query.id} className="p-3 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-900 mb-1">{query.query}</p>
+                    <div key={query.id} className="p-3 bg-card/50 rounded-lg border">
+                      <p className="text-sm text-foreground mb-1">{query.query}</p>
                       <div className="flex justify-between items-center">
-                        <p className="text-xs text-gray-500">{formatTimeAgo(query.createdAt)}</p>
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                        <p className="text-xs text-foreground/70">{formatTimeAgo(query.createdAt)}</p>
+                        <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">
                           {query.resultCount} results
                         </span>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-gray-500 text-sm">No queries yet</p>
+                  <p className="text-foreground/70 text-sm">No queries yet</p>
                 )}
               </div>
             </CardContent>
