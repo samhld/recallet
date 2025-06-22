@@ -281,11 +281,11 @@ export default function SearchPage() {
               </div>
 
               {results.length === 0 ? (
-                <Card className="shadow-sm border border-gray-200">
+                <Card className="shadow-sm border border-border">
                   <CardContent className="p-12 text-center">
-                    <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No results found</h3>
-                    <p className="text-gray-600 mb-4">
+                    <Search className="h-12 w-12 text-foreground/50 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">No results found</h3>
+                    <p className="text-foreground/70 mb-4">
                       Try adjusting your search terms or removing filters
                     </p>
                     <Link href="/add">
@@ -298,7 +298,7 @@ export default function SearchPage() {
               ) : (
                 <div className="space-y-4">
                   {results.map((result) => (
-                    <Card key={result.id} className="border border-gray-200 hover:shadow-md transition-shadow">
+                    <Card key={result.id} className="border border-border hover:shadow-md transition-shadow">
                       <CardContent className="p-6">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center space-x-3">
@@ -307,15 +307,15 @@ export default function SearchPage() {
                                 {result.category.charAt(0).toUpperCase() + result.category.slice(1)}
                               </Badge>
                             )}
-                            <span className="text-sm text-gray-500">{formatDate(result.createdAt)}</span>
+                            <span className="text-sm text-foreground/70">{formatDate(result.createdAt)}</span>
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <p className="text-gray-900 leading-relaxed">
+                          <p className="text-foreground leading-relaxed">
                             {highlightSearchTerm(result.content, query)}
                           </p>
                           {result.tags && (
-                            <div className="flex items-center space-x-4 text-sm text-gray-500">
+                            <div className="flex items-center space-x-4 text-sm text-foreground/70">
                               <span className="flex items-center">
                                 <Tags className="h-3 w-3 mr-1" />
                                 {result.tags}
@@ -332,11 +332,11 @@ export default function SearchPage() {
           )}
 
           {!hasSearched && (
-            <Card className="shadow-sm border border-gray-200">
+            <Card className="shadow-sm border border-border">
               <CardContent className="p-12 text-center">
-                <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Search your knowledge base</h3>
-                <p className="text-gray-600">
+                <Search className="h-12 w-12 text-foreground/50 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">Search your knowledge base</h3>
+                <p className="text-foreground/70">
                   Enter keywords to find information from your stored inputs
                 </p>
               </CardContent>

@@ -248,7 +248,7 @@ export default function SmartSearchPage() {
                       ))}
                     </div>
                     <div>
-                      <span className="text-sm font-medium text-gray-600">Relationship: </span>
+                      <span className="text-sm font-medium text-foreground/70">Relationship: </span>
                       <Badge variant="outline">{result.relationship}</Badge>
                     </div>
                   </div>
@@ -256,16 +256,16 @@ export default function SmartSearchPage() {
               </Card>
 
               {/* Answers */}
-              <Card className="shadow-sm border border-gray-200">
+              <Card className="shadow-sm border border-border">
                 <CardContent className="p-6">
-                  <h4 className="font-medium text-gray-900 mb-3">
+                  <h4 className="font-medium text-foreground mb-3">
                     Answers ({result.answers.length} found)
                   </h4>
                   {result.answers.length === 0 ? (
                     <div className="text-center py-8">
-                      <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No answers found</h3>
-                      <p className="text-gray-600 mb-4">
+                      <Brain className="h-12 w-12 text-foreground/50 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-foreground mb-2">No answers found</h3>
+                      <p className="text-foreground/70 mb-4">
                         Try asking a different question or add more inputs to your knowledge base
                       </p>
                       <Link href="/add">
@@ -277,8 +277,8 @@ export default function SmartSearchPage() {
                   ) : (
                     <div className="space-y-3">
                       {result.answers.map((answer, index) => (
-                        <div key={index} className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                          <p className="text-green-900 font-medium">{answer}</p>
+                        <div key={index} className="p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                          <p className="text-foreground font-medium">{answer}</p>
                         </div>
                       ))}
                     </div>
@@ -289,14 +289,14 @@ export default function SmartSearchPage() {
           )}
 
           {!hasSearched && (
-            <Card className="shadow-sm border border-gray-200">
+            <Card className="shadow-sm border border-border">
               <CardContent className="p-12 text-center">
-                <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Ask intelligent questions</h3>
-                <p className="text-gray-600 mb-4">
+                <Brain className="h-12 w-12 text-foreground/50 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">Ask intelligent questions</h3>
+                <p className="text-foreground/70 mb-4">
                   Use natural language to query your knowledge base. Try questions like:
                 </p>
-                <div className="text-sm text-gray-500 space-y-1">
+                <div className="text-sm text-foreground/70 space-y-1">
                   <p>"Who are my favorite artists?"</p>
                   <p>"What does my girlfriend like?"</p>
                   <p>"Which bands do I love?"</p>

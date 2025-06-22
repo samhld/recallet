@@ -225,18 +225,18 @@ export default function QueryHistoryPage() {
                       </CollapsibleTrigger>
                       
                       <CollapsibleContent>
-                        <div className="px-6 pb-6 border-t border-gray-100">
+                        <div className="px-6 pb-6 border-t border-border">
                           <div className="pt-4 space-y-4">
                             
                             {/* Query Analysis */}
                             <div>
-                              <h4 className="font-medium text-gray-900 mb-2 flex items-center">
-                                <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                              <h4 className="font-medium text-foreground mb-2 flex items-center">
+                                <span className="w-2 h-2 bg-primary rounded-full mr-2"></span>
                                 Query Analysis
                               </h4>
-                              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                              <div className="bg-card/50 rounded-lg p-4 space-y-2 border">
                                 <div>
-                                  <span className="text-sm font-medium text-gray-600">Entities: </span>
+                                  <span className="text-sm font-medium text-foreground/70">Entities: </span>
                                   {details.entities.map((entity, index) => (
                                     <Badge key={index} variant="secondary" className="mr-2">
                                       {entity}
@@ -244,7 +244,7 @@ export default function QueryHistoryPage() {
                                   ))}
                                 </div>
                                 <div>
-                                  <span className="text-sm font-medium text-gray-600">Relationship: </span>
+                                  <span className="text-sm font-medium text-foreground/70">Relationship: </span>
                                   <Badge variant="outline">{details.relationship}</Badge>
                                 </div>
                               </div>
@@ -252,12 +252,12 @@ export default function QueryHistoryPage() {
 
                             {/* Database Query */}
                             <div>
-                              <h4 className="font-medium text-gray-900 mb-2 flex items-center">
-                                <Database className="h-4 w-4 mr-2 text-gray-600" />
+                              <h4 className="font-medium text-foreground mb-2 flex items-center">
+                                <Database className="h-4 w-4 mr-2 text-foreground/70" />
                                 PostgreSQL Query
                               </h4>
-                              <div className="bg-gray-900 rounded-lg p-4">
-                                <pre className="text-sm text-gray-100 font-mono overflow-x-auto">
+                              <div className="bg-card rounded-lg p-4 border">
+                                <pre className="text-sm text-foreground font-mono overflow-x-auto">
                                   {details.postgresQuery}
                                 </pre>
                               </div>
@@ -271,11 +271,11 @@ export default function QueryHistoryPage() {
               })}
             </div>
           ) : (
-            <Card className="shadow-sm border border-gray-200">
+            <Card className="shadow-sm border border-border">
               <CardContent className="p-12 text-center">
-                <History className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No queries yet</h3>
-                <p className="text-gray-600 mb-4">
+                <History className="h-12 w-12 text-foreground/50 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">No queries yet</h3>
+                <p className="text-foreground/70 mb-4">
                   Start using Smart Search to build your query history
                 </p>
                 <Link href="/smart-search">
