@@ -57,11 +57,26 @@ export default function Landing() {
   const isLoading = isLoginLoading || isRegisterLoading;
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-background">
+    <div className="min-h-screen flex items-center justify-center px-4" style={{background: 'linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%)'}}>
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold text-gray-900 mb-2">Recallet</h1>
-          <p className="text-gray-600">Your personal knowledge repository</p>
+          <div className="flex items-center justify-center mb-4">
+            <div className="flex items-center space-x-4">
+              {/* Logo Circle with R */}
+              <div className="relative w-16 h-16">
+                <div className="absolute inset-0 rounded-full border-4 border-orange-300 opacity-80"></div>
+                <div className="absolute inset-1 rounded-full border-2 border-orange-400 opacity-60"></div>
+                <div className="absolute inset-2 rounded-full border-2 border-orange-500 bg-transparent flex items-center justify-center">
+                  <span className="text-orange-400 text-2xl font-bold tracking-wider">R</span>
+                </div>
+              </div>
+              {/* Brand Text */}
+              <div className="text-left">
+                <h1 className="text-4xl font-bold text-white tracking-wider">RECALLET</h1>
+                <p className="text-white text-sm tracking-widest opacity-80">YOUR SECOND MEMORY</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <Card className="shadow-lg">
