@@ -3,30 +3,35 @@
 @tailwind utilities;
 
 :root {
-  --background: 250 20% 98%; /* #FAFAFA */
-  --foreground: 20 14.3% 4.1%;
-  --muted: 60 4.8% 95.9%;
-  --muted-foreground: 25 5.3% 44.7%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 20 14.3% 4.1%;
-  --card: 0 0% 100%;
-  --card-foreground: 20 14.3% 4.1%;
-  --border: 20 5.9% 90%;
-  --input: 20 5.9% 90%;
-  --primary: 207 90% 54%; /* #1976D2 */
+  --background: 210 11% 15%; /* Dark background like landing page */
+  --foreground: 0 0% 98%; /* White text */
+  --muted: 217 19% 27%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --popover: 222 84% 5%;
+  --popover-foreground: 210 40% 98%;
+  --card: 217 19% 18%; /* Dark cards */
+  --card-foreground: 210 40% 98%;
+  --border: 217 19% 27%;
+  --input: 217 19% 18%;
+  --primary: 207 90% 54%; /* Keep blue accent */
   --primary-foreground: 211 100% 99%;
-  --secondary: 60 4.8% 95.9%;
-  --secondary-foreground: 24 9.8% 10%;
-  --accent: 188 100% 38%; /* #00ACC1 */
-  --accent-foreground: 24 9.8% 10%;
+  --secondary: 217 19% 27%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 188 100% 38%;
+  --accent-foreground: 210 40% 98%;
   --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 60 9.1% 97.8%;
-  --ring: 20 14.3% 4.1%;
+  --destructive-foreground: 210 40% 98%;
+  --ring: 217 19% 27%;
   --radius: 0.5rem;
 }
 
+body {
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+  min-height: 100vh;
+}
+
 .dark {
-  --background: 240 10% 3.9%;
+  --background: 210 11% 15%;
   --foreground: 0 0% 98%;
   --muted: 240 3.7% 15.9%;
   --muted-foreground: 240 5% 64.9%;

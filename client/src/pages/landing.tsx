@@ -65,7 +65,7 @@ export default function Landing() {
               <img 
                 src="/recallet-logo.png" 
                 alt="Recallet - Your Second Memory" 
-                className="h-60 w-auto mx-auto"
+                className="h-80 w-auto mx-auto"
                 onError={(e) => {
                   console.error('Image failed to load, falling back to text');
                   e.currentTarget.style.display = 'none';
