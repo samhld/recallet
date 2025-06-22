@@ -273,57 +273,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
 
       
-      // Generate query relationship description and create embedding for better semantic matching
-      const queryRelationshipDescription = await generateRelationshipDescription(
-        "the user",
-        parsed.relationship,
-        "the target entities being sought"
-      );
-      const relationshipEmbedding = await createEmbedding(queryRelationshipDescription);
+      // Create embedding for the relationship
+      const relationshipEmbedding = await createEmbedding(parsed.relationship);
       
-      console.log("🔍 Searching knowledge graph and relationships (USER-SCOPED)...");
-      console.log("👤 All searches limited to user ID:", req.session.userId);
+      console.log("🔍 Using Enhanced Knowledge Graph Search...");
+      console.log("👤 User ID:", req.session.userId);
       
-      // Primary search: Find relationships by embedding similarity
-      console.log("🔍 Primary: Relationship embedding search (USER-SCOPED)");
-      const relationshipResults = await storage.searchRelationshipsByEmbedding(
+      // Use enhanced knowledge graph search with entity resolution and graph walking
+      const filteredResults = await storage.searchKnowledgeGraph(
         req.session.userId!,
+        parsed.entities,
         relationshipEmbedding
       );
       
-      console.log("🎯 Found", relationshipResults.relationships.length, "matching relationships by embedding similarity");
-      console.log("📌 All entities from relationship search:", relationshipResults.targetEntities);
-      
-      // Filter relationship results to only include entities that match query entities
-      let filteredResults: { originalInputs: string[]; targetEntities: string[] } = { originalInputs: [], targetEntities: [] };
-      
-      if (parsed.entities.length > 0) {
-        console.log("🔍 Filtering: Keep only relationships involving query entities");
-        const filteredRelationships = relationshipResults.relationships.filter(rel => {
-          // Check if any query entity appears as source or target in this specific relationship
-          return parsed.entities.some(queryEntity => 
-            rel.sourceEntityName === queryEntity || rel.targetEntityName === queryEntity
-          );
-        });
-        
-        console.log("✅ Filtered to", filteredRelationships.length, "relationships involving query entities");
-        console.log("📌 Filtered relationships:", filteredRelationships.map(r => 
-          `${r.sourceEntityName} -> ${r.relationship} -> ${r.targetEntityName}`
-        ));
-        
-        filteredResults.originalInputs = filteredRelationships.map(r => r.originalInput);
-        filteredResults.targetEntities = filteredRelationships.map(r => r.targetEntityName)
-          .filter((entity, index, arr) => arr.indexOf(entity) === index); // remove duplicates
-      } else {
-        // No entity filter, use all relationship results
-        filteredResults.originalInputs = relationshipResults.relationships.map(r => r.originalInput);
-        filteredResults.targetEntities = relationshipResults.targetEntities;
-      }
-      
-      console.log("🎯 Final search results:");
-      console.log("📌 Total unique target entities:", filteredResults.targetEntities.length);
-      console.log("📚 Total unique original inputs:", filteredResults.originalInputs.length);
-      
+      console.log("✅ Enhanced search complete");
       console.log("📊 Found target entities:", filteredResults.targetEntities);
       console.log("📚 Found original inputs:", filteredResults.originalInputs);
       
