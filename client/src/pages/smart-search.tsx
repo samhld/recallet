@@ -110,19 +110,29 @@ export default function SmartSearchPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-card shadow-sm border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-gray-900">Recallet</h1>
+              <img 
+                src="/recallet-logo.png" 
+                alt="Recallet" 
+                className="h-8 w-auto"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling;
+                  if (fallback) fallback.style.display = 'block';
+                }}
+              />
+              <h1 className="text-2xl font-bold text-foreground" style={{ display: 'none' }}>Recallet</h1>
               <nav className="hidden md:flex space-x-8">
-                <Link href="/" className="text-gray-500 hover:text-gray-700 pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
+                <Link href="/" className="text-muted-foreground hover:text-foreground pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
                   Dashboard
                 </Link>
-                <Link href="/add" className="text-gray-500 hover:text-gray-700 pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
+                <Link href="/add" className="text-muted-foreground hover:text-foreground pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
                   Add Input
                 </Link>
-                <Link href="/search" className="text-gray-500 hover:text-gray-700 pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
+                <Link href="/search" className="text-muted-foreground hover:text-foreground pb-4 mb-[-1px] px-1 text-sm font-medium transition-colors">
                   Search
                 </Link>
                 <span className="text-primary border-b-2 border-primary pb-4 mb-[-1px] px-1 text-sm font-medium">
@@ -131,7 +141,7 @@ export default function SmartSearchPage() {
               </nav>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">{user?.username}</span>
+              <span className="text-sm text-muted-foreground">{user?.username}</span>
               <Button
                 variant="ghost"
                 size="sm"
