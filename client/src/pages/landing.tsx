@@ -60,7 +60,7 @@ export default function Landing() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold text-gray-900 mb-2">PersonalBase</h1>
+          <h1 className="text-5xl font-bold text-gray-900 mb-2">Recallet</h1>
           <p className="text-gray-600">Your personal knowledge repository</p>
         </div>
 
