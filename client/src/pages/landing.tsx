@@ -61,11 +61,23 @@ export default function Landing() {
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <img 
-              src="/recallet-logo.png" 
-              alt="Recallet - Your Second Memory" 
-              className="h-20 w-auto"
-            />
+            <div className="text-center">
+              <img 
+                src="/recallet-logo.png" 
+                alt="Recallet - Your Second Memory" 
+                className="h-20 w-auto mx-auto"
+                onError={(e) => {
+                  console.error('Image failed to load, falling back to text');
+                  e.currentTarget.style.display = 'none';
+                  const fallback = e.currentTarget.nextElementSibling;
+                  if (fallback) fallback.style.display = 'block';
+                }}
+              />
+              <div style={{ display: 'none' }} className="text-center">
+                <h1 className="text-4xl font-bold text-white tracking-wider">RECALLET</h1>
+                <p className="text-white text-sm tracking-widest opacity-80">YOUR SECOND MEMORY</p>
+              </div>
+            </div>
           </div>
         </div>
 
