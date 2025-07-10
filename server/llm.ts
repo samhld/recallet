@@ -317,7 +317,6 @@ export async function detectExistingEntitiesForContextUpdate(
           userId,
           rel.sourceEntity,
           relationshipContext,
-          username,
         );
       }
 
@@ -334,7 +333,6 @@ export async function detectExistingEntitiesForContextUpdate(
           userId,
           rel.targetEntity,
           relationshipContext,
-          username,
         );
       }
     } catch (error) {

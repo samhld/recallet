@@ -1,6 +1,6 @@
-import { users, inputs, queries, entities, relationships, type User, type InsertUser, type Input, type InsertInput, type Query, type InsertQuery, type Entity, type InsertEntity, type Relationship, type InsertRelationship } from "@shared/schema";
+import { users, inputs, queries, entities, relationships, type User, type InsertUser, type Input, type InsertInput, type Query, type InsertQuery, type Entity, type Relationship, type InsertRelationship } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, ilike, or, and, sql, cosineDistance } from "drizzle-orm";
+import { eq, desc, ilike, or, and, sql } from "drizzle-orm";
 import { generateEntityDescription, createEmbedding } from "./llm";
 
 export interface IStorage {
@@ -28,7 +28,7 @@ export interface IStorage {
   getOrCreateEntity(userId: number, entityName: string, username: string): Promise<Entity>;
   createRelationship(relationship: InsertRelationship): Promise<Relationship>;
   searchEntitiesByDescription(userId: number, queryEmbedding: number[]): Promise<Entity[]>;
-  updateEntityContext(userId: number, entityName: string, additionalContext: string, username: string): Promise<Entity>;
+  updateEntityContext(userId: number, entityName: string, additionalContext: string): Promise<Entity>;
   searchRelationshipsByEmbedding(userId: number, relationshipEmbedding: number[]): Promise<{
     relationships: (Relationship & { sourceEntityName: string; targetEntityName: string })[];
     targetEntities: string[];
@@ -54,18 +54,54 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
+    const result = await db
       .insert(users)
-      .values(insertUser)
-      .returning();
+      .values(insertUser);
+    
+    // Drizzle MySQL returns array with [ResultSetHeader, FieldPacket[]]
+    // insertId is in the first element (ResultSetHeader)
+    const insertId = (result as any)[0]?.insertId;
+    console.log(`🔍 User insert result:`, { insertId, resultType: typeof result, resultKeys: Object.keys(result), result: result });
+    
+    if (!insertId) {
+      throw new Error(`Failed to get insertId for user "${insertUser.username}"`);
+    }
+    
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, Number(insertId)));
+    
+    if (!user) {
+      throw new Error(`Failed to fetch created user "${insertUser.username}" with ID ${insertId}`);
+    }
+    
     return user;
   }
 
   async createInput(insertInput: InsertInput): Promise<Input> {
-    const [input] = await db
+    const result = await db
       .insert(inputs)
-      .values(insertInput)
-      .returning();
+      .values(insertInput);
+    
+    // Drizzle MySQL returns array with [ResultSetHeader, FieldPacket[]]
+    // insertId is in the first element (ResultSetHeader)
+    const insertId = (result as any)[0]?.insertId;
+    console.log(`🔍 Input insert result:`, { insertId, resultType: typeof result, resultKeys: Object.keys(result), result: result });
+    
+    if (!insertId) {
+      throw new Error(`Failed to get insertId for input`);
+    }
+    
+    const [input] = await db
+      .select()
+      .from(inputs)
+      .where(eq(inputs.id, Number(insertId)));
+    
+    if (!input) {
+      throw new Error(`Failed to fetch created input with ID ${insertId}`);
+    }
+    
     return input;
   }
 
@@ -102,10 +138,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createQuery(insertQuery: InsertQuery): Promise<Query> {
-    const [query] = await db
+    const result = await db
       .insert(queries)
-      .values(insertQuery)
-      .returning();
+      .values(insertQuery);
+    
+    // Drizzle MySQL returns array with [ResultSetHeader, FieldPacket[]]
+    // insertId is in the first element (ResultSetHeader)
+    const insertId = (result as any)[0]?.insertId;
+    
+    if (!insertId) {
+      throw new Error(`Failed to get insertId for query`);
+    }
+    
+    const [query] = await db
+      .select()
+      .from(queries)
+      .where(eq(queries.id, Number(insertId)));
+    
+    if (!query) {
+      throw new Error(`Failed to fetch created query with ID ${insertId}`);
+    }
+    
     return query;
   }
 
@@ -118,7 +171,7 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async createKnowledgeGraphEntry(entry: any): Promise<any> {
+  async createKnowledgeGraphEntry(): Promise<any> {
     // Legacy method - no longer used, entities and relationships tables are used instead
     throw new Error("createKnowledgeGraphEntry is deprecated - use entity/relationship methods instead");
   }
@@ -148,8 +201,8 @@ export class DatabaseStorage implements IStorage {
       LIMIT 1
     `);
     
-    if (exactMatch.rows.length > 0) {
-      startingEntityId = exactMatch.rows[0].id as number;
+    if ((exactMatch as any).length > 0) {
+      startingEntityId = (exactMatch as any)[0].id as number;
       console.log(`📌 Found exact entity match: ${queryEntity} (id: ${startingEntityId})`);
     } else {
       // Find best matching entity using description embedding
@@ -166,9 +219,9 @@ export class DatabaseStorage implements IStorage {
         LIMIT 5
       `);
       
-      if (similarEntities.rows.length > 0) {
-        startingEntityId = similarEntities.rows[0].id as number;
-        console.log(`📌 Found similar entity: ${similarEntities.rows[0].name} (id: ${startingEntityId}, distance: ${similarEntities.rows[0].distance})`);
+      if ((similarEntities as any).length > 0) {
+        startingEntityId = (similarEntities as any)[0].id as number;
+        console.log(`📌 Found similar entity: ${(similarEntities as any)[0].name} (id: ${startingEntityId}, distance: ${(similarEntities as any)[0].distance})`);
       } else {
         console.log(`❌ No similar entities found for "${queryEntity}"`);
       }
@@ -193,8 +246,8 @@ export class DatabaseStorage implements IStorage {
     `);
     
     // Second edge: relationships from first-edge targets
-    const firstEdgeTargets = firstEdgeQuery.rows.map(row => row.target_entity_id);
-    let secondEdgeQuery: any = { rows: [] };
+    const firstEdgeTargets = (firstEdgeQuery as any).map((row: any) => row.target_entity_id);
+    let secondEdgeQuery: any = [];
     
     if (firstEdgeTargets.length > 0) {
       const targetIdsStr = firstEdgeTargets.join(',');
@@ -209,8 +262,8 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Combine all discovered relationships
-    const allRelationships = [...firstEdgeQuery.rows, ...secondEdgeQuery.rows];
-    console.log(`🔗 Found ${firstEdgeQuery.rows.length} first-edge and ${secondEdgeQuery.rows.length} second-edge relationships`);
+    const allRelationships = [...(firstEdgeQuery as any), ...(secondEdgeQuery as any)];
+    console.log(`🔗 Found ${(firstEdgeQuery as any).length} first-edge and ${(secondEdgeQuery as any).length} second-edge relationships`);
     
     if (allRelationships.length === 0) {
       console.log("❌ No relationships found in graph walk");
@@ -301,47 +354,62 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOrCreateEntity(userId: number, entityName: string, username: string): Promise<Entity> {
+    // First, try to get existing entity
+    const [existingEntity] = await db
+      .select()
+      .from(entities)
+      .where(
+        and(
+          eq(entities.userId, userId),
+          eq(entities.name, entityName)
+        )
+      );
+
+    if (existingEntity) {
+      console.log(`📌 Entity "${entityName}" already exists`);
+      return existingEntity;
+    }
+
+    console.log(`✨ Creating new entity "${entityName}" for user ${username}`);
+    
+    // Generate description and embedding for new entity
+    const description = await generateEntityDescription(entityName, username);
+    const descriptionVec = await createEmbedding(description);
+
     try {
-      // First, check if entity already exists
-      const [existingEntity] = await db
-        .select()
-        .from(entities)
-        .where(
-          and(
-            eq(entities.userId, userId),
-            eq(entities.name, entityName)
-          )
-        );
-
-      if (existingEntity) {
-        console.log(`📌 Entity "${entityName}" already exists, skipping description generation`);
-        return existingEntity;
-      }
-
-      console.log(`✨ Creating new entity "${entityName}" for user ${username}`);
-      
-      // Generate description and embedding for new entity
-      const description = await generateEntityDescription(entityName, username);
-      const descriptionVec = await createEmbedding(description);
-
-      // Create the new entity
-      const [newEntity] = await db
+      // Use MySQL INSERT with proper error handling
+      const result = await db
         .insert(entities)
         .values({
           userId,
           name: entityName,
           description,
           descriptionVec,
-        })
-        .returning();
+        });
+
+      const insertId = (result as any)[0]?.insertId;
+      console.log(`🔍 Entity insert result for "${entityName}":`, { insertId, resultType: typeof result, resultKeys: Object.keys(result), result: result });
+      
+      if (!insertId) {
+        throw new Error(`Failed to get insertId for entity "${entityName}"`);
+      }
+      
+      const [newEntity] = await db
+        .select()
+        .from(entities)
+        .where(eq(entities.id, Number(insertId)));
+
+      if (!newEntity) {
+        throw new Error(`Failed to fetch created entity "${entityName}" with ID ${insertId}`);
+      }
 
       console.log(`✅ Created entity "${entityName}" with ID ${newEntity.id}`);
       return newEntity;
 
     } catch (error: any) {
-      // Handle unique constraint violation (in case of race condition)
-      if (error.code === '23505') {
-        console.log(`⚠️ Unique constraint violation for entity "${entityName}", fetching existing`);
+      // Handle race condition where another process created the entity
+      if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
+        console.log(`⚠️ Race condition detected for entity "${entityName}", fetching existing`);
         const [existingEntity] = await db
           .select()
           .from(entities)
@@ -351,6 +419,11 @@ export class DatabaseStorage implements IStorage {
               eq(entities.name, entityName)
             )
           );
+        
+        if (!existingEntity) {
+          throw new Error(`Entity "${entityName}" should exist after duplicate key error but was not found`);
+        }
+        
         return existingEntity;
       }
       throw error;
@@ -359,14 +432,35 @@ export class DatabaseStorage implements IStorage {
 
   async createRelationship(relationship: InsertRelationship): Promise<Relationship> {
     try {
-      const [newRelationship] = await db
+      const result = await db
         .insert(relationships)
-        .values(relationship)
-        .returning();
+        .values({
+          ...relationship,
+          relationshipVec: relationship.relationshipVec as number[],
+          relationshipDescVec: relationship.relationshipDescVec as number[] | undefined
+        });
+      
+      // Drizzle MySQL returns insertId directly on the result
+      const insertId = (result as any).insertId;
+      
+      if (!insertId) {
+        throw new Error(`Failed to get insertId for relationship`);
+      }
+      
+      const [newRelationship] = await db
+        .select()
+        .from(relationships)
+        .where(eq(relationships.id, Number(insertId)));
+      
+      if (!newRelationship) {
+        throw new Error(`Failed to fetch created relationship with ID ${insertId}`);
+      }
+      
       return newRelationship;
     } catch (error: any) {
       // Handle unique constraint violation gracefully
-      if (error.code === '23505') {
+      // MySQL error code for duplicate entry is ER_DUP_ENTRY (1062)
+      if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {
         console.log(`⚠️ Duplicate relationship detected, fetching existing`);
         const [existing] = await db
           .select()
@@ -386,17 +480,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchEntitiesByDescription(userId: number, queryEmbedding: number[]): Promise<Entity[]> {
+    // Convert embedding to TiDB vector format
+    const embeddingVector = `[${queryEmbedding.join(',')}]`;
+    
     const results = await db
       .select()
       .from(entities)
       .where(eq(entities.userId, userId))
-      .orderBy(cosineDistance(entities.descriptionVec, queryEmbedding))
+      .orderBy(sql`cosine_distance(${entities.descriptionVec}, ${embeddingVector})`)
       .limit(10);
 
     return results.filter(entity => entity.descriptionVec); // Only return entities with embeddings
   }
 
-  async updateEntityContext(userId: number, entityName: string, additionalContext: string, username: string): Promise<Entity> {
+  async updateEntityContext(userId: number, entityName: string, additionalContext: string): Promise<Entity> {
     try {
       // Get the existing entity
       const [existingEntity] = await db
@@ -427,7 +524,7 @@ export class DatabaseStorage implements IStorage {
       const updatedDescriptionVec = await createEmbedding(updatedDescription);
 
       // Update the entity with new description and embedding
-      const [updatedEntity] = await db
+      await db
         .update(entities)
         .set({
           description: updatedDescription,
@@ -438,8 +535,18 @@ export class DatabaseStorage implements IStorage {
             eq(entities.userId, userId),
             eq(entities.name, entityName)
           )
-        )
-        .returning();
+        );
+
+      // Fetch the updated entity
+      const [updatedEntity] = await db
+        .select()
+        .from(entities)
+        .where(
+          and(
+            eq(entities.userId, userId),
+            eq(entities.name, entityName)
+          )
+        );
 
       console.log(`✅ Successfully updated entity "${entityName}"`);
       return updatedEntity;
@@ -483,7 +590,7 @@ export class DatabaseStorage implements IStorage {
         LIMIT 10
       `);
 
-      console.log("📊 ALL relationships with distances (for analysis):", allRelationshipsQuery.rows.map(row => ({
+      console.log("📊 ALL relationships with distances (for analysis):", (allRelationshipsQuery as any).map((row: any) => ({
         source_entity_name: row.source_entity_name,
         target_entity_name: row.target_entity_name,
         relationship: row.relationship,
@@ -515,9 +622,9 @@ export class DatabaseStorage implements IStorage {
         LIMIT 5
       `);
       
-      console.log("🔍 Filtered query returned", queryResult.rows.length, "rows");
+      console.log("🔍 Filtered query returned", (queryResult as any).length, "rows");
 
-      console.log("📊 Raw relationship search results with distances:", queryResult.rows.map(row => ({
+      console.log("📊 Raw relationship search results with distances:", (queryResult as any).map((row: any) => ({
         source_entity_name: row.source_entity_name,
         target_entity_name: row.target_entity_name,
         relationship: row.relationship,
@@ -526,7 +633,7 @@ export class DatabaseStorage implements IStorage {
         original_input: row.original_input
       })));
 
-      const relationships = queryResult.rows.map(row => ({
+      const relationships = (queryResult as any).map((row: any) => ({
         id: row.id as number,
         userId: row.user_id as number,
         sourceEntityId: row.source_entity_id as number,
@@ -541,7 +648,7 @@ export class DatabaseStorage implements IStorage {
         targetEntityName: row.target_entity_name as string,
       }));
 
-      const targetEntities = queryResult.rows.map(row => row.target_entity_name as string);
+      const targetEntities = (queryResult as any).map((row: any) => row.target_entity_name as string);
 
       console.log(`🎯 Found ${relationships.length} matching relationships by embedding similarity`);
       console.log(`📌 Target entities from relationship search: ${targetEntities.join(', ')}`);

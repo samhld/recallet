@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1752129379571,
+      "tag": "0000_watery_ghost_rider",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,62 +1,82 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar, vector, jsonb, unique } from "drizzle-orm/pg-core";
+import { mysqlTable, text, serial, int, bigint, timestamp, varchar, json, uniqueIndex, customType } from "drizzle-orm/mysql-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
 
-export const users = pgTable("users", {
+// TiDB Vector type definition
+const vector = customType<{ data: number[]; notNull: false; default: false }>({
+  dataType() {
+    return "VECTOR(1536)";
+  },
+  toDriver(value: number[]): string {
+    return `[${value.join(',')}]`;
+  },
+  fromDriver(value: unknown): number[] {
+    if (typeof value === 'string') {
+      // Parse TiDB vector format like "[0.1, 0.2, ...]"
+      const cleanStr = value.replace(/^\[|\]$/g, '');
+      return cleanStr.split(',').map(s => parseFloat(s.trim()));
+    }
+    return value as number[];
+  },
+});
+
+export const users = mysqlTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  username: varchar("username", { length: 255 }).notNull().unique(),
+  password: varchar("password", { length: 255 }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const inputs = pgTable("inputs", {
+export const inputs = mysqlTable("inputs", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: bigint("user_id", { mode: "number", unsigned: true }).notNull().references(() => users.id),
   content: text("content").notNull(),
-  category: text("category"),
-  tags: text("tags"),
+  category: varchar("category", { length: 255 }),
+  tags: varchar("tags", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const queries = pgTable("queries", {
+export const queries = mysqlTable("queries", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: bigint("user_id", { mode: "number", unsigned: true }).notNull().references(() => users.id),
   query: text("query").notNull(),
-  resultCount: integer("result_count").notNull().default(0),
-  entities: jsonb("entities"),
-  relationship: text("relationship"),
+  resultCount: int("result_count").notNull().default(0),
+  entities: json("entities"),
+  relationship: varchar("relationship", { length: 255 }),
   postgresQuery: text("postgres_query"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const entities = pgTable("entities", {
+export const entities = mysqlTable("entities", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  name: text("name").notNull(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }).notNull().references(() => users.id),
+  name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
-  descriptionVec: vector("description_vec", { dimensions: 1536 }),
+  // TiDB vector type for 1536-dimensional embeddings (OpenAI ada-002)
+  descriptionVec: vector("description_vec").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => {
   return {
-    uniqueEntity: unique().on(table.userId, table.name),
+    uniqueEntity: uniqueIndex("user_entity_unique").on(table.userId, table.name),
   };
 });
 
-export const relationships = pgTable("relationships", {
+export const relationships = mysqlTable("relationships", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  sourceEntityId: integer("source_entity_id").notNull().references(() => entities.id),
-  targetEntityId: integer("target_entity_id").notNull().references(() => entities.id),
-  relationship: text("relationship").notNull(),
-  relationshipVec: vector("relationship_vec", { dimensions: 1536 }),
+  userId: bigint("user_id", { mode: "number", unsigned: true }).notNull().references(() => users.id),
+  sourceEntityId: bigint("source_entity_id", { mode: "number", unsigned: true }).notNull().references(() => entities.id),
+  targetEntityId: bigint("target_entity_id", { mode: "number", unsigned: true }).notNull().references(() => entities.id),
+  relationship: varchar("relationship", { length: 255 }).notNull(),
+  // TiDB vector type for 1536-dimensional embeddings
+  relationshipVec: vector("relationship_vec").notNull(),
   relationshipDesc: text("relationship_desc"),
-  relationshipDescVec: vector("relationship_desc_vec", { dimensions: 1536 }),
+  relationshipDescVec: vector("relationship_desc_vec"),
   originalInput: text("original_input").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => {
   return {
-    uniqueRelationship: unique().on(table.userId, table.sourceEntityId, table.relationship, table.targetEntityId),
+    uniqueRelationship: uniqueIndex("user_source_rel_target_unique").on(table.userId, table.sourceEntityId, table.relationship, table.targetEntityId),
   };
 });
 
