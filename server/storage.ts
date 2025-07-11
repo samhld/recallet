@@ -456,12 +456,12 @@ export class DatabaseStorage implements IStorage {
 
     try {
       // Prepare vector data for TiDB
-      const relationshipVecFormatted = Array.isArray(relationship.relationshipVec) 
-        ? relationship.relationshipVec 
+      const relationshipVecFormatted: number[] = Array.isArray(relationship.relationshipVec) 
+        ? [...relationship.relationshipVec] 
         : [];
       
-      const relationshipDescVecFormatted = Array.isArray(relationship.relationshipDescVec) 
-        ? relationship.relationshipDescVec 
+      const relationshipDescVecFormatted: number[] | null = Array.isArray(relationship.relationshipDescVec) 
+        ? [...relationship.relationshipDescVec] 
         : null;
 
       console.log(`🔍 Formatted vectors:`, {
@@ -469,18 +469,20 @@ export class DatabaseStorage implements IStorage {
         relationshipDescVecFormatted: relationshipDescVecFormatted ? relationshipDescVecFormatted.slice(0, 5) : null
       });
 
+      const insertData = {
+        userId: relationship.userId,
+        sourceEntityId: relationship.sourceEntityId,
+        targetEntityId: relationship.targetEntityId,
+        relationship: relationship.relationship,
+        relationshipVec: relationshipVecFormatted,
+        originalInput: relationship.originalInput,
+        ...(relationship.relationshipDesc && { relationshipDesc: relationship.relationshipDesc }),
+        ...(relationshipDescVecFormatted && { relationshipDescVec: relationshipDescVecFormatted }),
+      };
+
       const result = await db
         .insert(relationships)
-        .values({
-          userId: relationship.userId,
-          sourceEntityId: relationship.sourceEntityId,
-          targetEntityId: relationship.targetEntityId,
-          relationship: relationship.relationship,
-          relationshipVec: relationshipVecFormatted,
-          relationshipDesc: relationship.relationshipDesc || null,
-          relationshipDescVec: relationshipDescVecFormatted,
-          originalInput: relationship.originalInput
-        });
+        .values(insertData);
       
       // Drizzle MySQL returns array with [ResultSetHeader, FieldPacket[]]
       // insertId is in the first element (ResultSetHeader)

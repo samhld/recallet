@@ -4,6 +4,8 @@ import session from "express-session";
 import { storage } from "./storage";
 import { insertUserSchema, insertInputSchema } from "@shared/schema";
 import { parseInputToEntityRelationships, createEmbedding, parseQueryToEntityRelationship, synthesizeAnswerFromContext, generateRelationshipDescription } from "./llm";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 
@@ -341,7 +343,9 @@ LIMIT 10;`;
       `);
       
       let updated = 0;
-      for (const row of relationshipsToUpdate.rows) {
+      // MySQL raw query result is an array [rows, fields] where rows is the actual data
+      const rows = (relationshipsToUpdate as any)[0] || [];
+      for (const row of rows) {
         if (row.relationship_desc) {
           console.log(`Processing relationship ${row.id}...`);
           const embedding = await createEmbedding(row.relationship_desc as string);
@@ -354,7 +358,7 @@ LIMIT 10;`;
           `);
           
           updated++;
-          console.log(`✅ Updated relationship ${row.id} (${updated}/${relationshipsToUpdate.rows.length})`);
+          console.log(`✅ Updated relationship ${row.id} (${updated}/${rows.length})`);
         }
       }
       
@@ -362,7 +366,7 @@ LIMIT 10;`;
       res.json({ message: `Updated ${updated} embeddings`, success: true });
     } catch (error) {
       console.error("❌ Backfill error:", error);
-      res.status(500).json({ message: "Backfill failed", error: error.message });
+      res.status(500).json({ message: "Backfill failed", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
