@@ -201,8 +201,19 @@ export class DatabaseStorage implements IStorage {
       LIMIT 1
     `);
     
-    if ((exactMatch as any).length > 0) {
-      startingEntityId = (exactMatch as any)[0].id as number;
+    console.log(`🔍 Raw SQL exactMatch result:`, { 
+      exactMatch, 
+      type: typeof exactMatch, 
+      keys: Object.keys(exactMatch),
+      length: (exactMatch as any).length,
+      firstItem: (exactMatch as any)[0],
+      firstItemKeys: (exactMatch as any)[0] ? Object.keys((exactMatch as any)[0]) : null
+    });
+    
+    // Raw SQL queries return [rows, fields] where rows is the actual data array
+    const rows = (exactMatch as any)[0] || [];
+    if (rows.length > 0) {
+      startingEntityId = rows[0].id as number;
       console.log(`📌 Found exact entity match: ${queryEntity} (id: ${startingEntityId})`);
     } else {
       // Find best matching entity using description embedding
@@ -431,17 +442,50 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createRelationship(relationship: InsertRelationship): Promise<Relationship> {
+    console.log(`🔍 Creating relationship:`, {
+      userId: relationship.userId,
+      sourceEntityId: relationship.sourceEntityId,
+      targetEntityId: relationship.targetEntityId,
+      relationship: relationship.relationship,
+      relationshipVecType: typeof relationship.relationshipVec,
+      relationshipVecLength: Array.isArray(relationship.relationshipVec) ? relationship.relationshipVec.length : 'not array',
+      relationshipDescVecType: typeof relationship.relationshipDescVec,
+      relationshipDescVecLength: Array.isArray(relationship.relationshipDescVec) ? relationship.relationshipDescVec.length : 'not array or undefined',
+      originalInput: relationship.originalInput
+    });
+
     try {
+      // Prepare vector data for TiDB
+      const relationshipVecFormatted = Array.isArray(relationship.relationshipVec) 
+        ? relationship.relationshipVec 
+        : [];
+      
+      const relationshipDescVecFormatted = Array.isArray(relationship.relationshipDescVec) 
+        ? relationship.relationshipDescVec 
+        : null;
+
+      console.log(`🔍 Formatted vectors:`, {
+        relationshipVecFormatted: relationshipVecFormatted.slice(0, 5), // First 5 elements
+        relationshipDescVecFormatted: relationshipDescVecFormatted ? relationshipDescVecFormatted.slice(0, 5) : null
+      });
+
       const result = await db
         .insert(relationships)
         .values({
-          ...relationship,
-          relationshipVec: relationship.relationshipVec as number[],
-          relationshipDescVec: relationship.relationshipDescVec as number[] | undefined
+          userId: relationship.userId,
+          sourceEntityId: relationship.sourceEntityId,
+          targetEntityId: relationship.targetEntityId,
+          relationship: relationship.relationship,
+          relationshipVec: relationshipVecFormatted,
+          relationshipDesc: relationship.relationshipDesc || null,
+          relationshipDescVec: relationshipDescVecFormatted,
+          originalInput: relationship.originalInput
         });
       
-      // Drizzle MySQL returns insertId directly on the result
-      const insertId = (result as any).insertId;
+      // Drizzle MySQL returns array with [ResultSetHeader, FieldPacket[]]
+      // insertId is in the first element (ResultSetHeader)
+      const insertId = (result as any)[0]?.insertId;
+      console.log(`🔍 Relationship insert result:`, { insertId, resultType: typeof result, resultKeys: Object.keys(result), result: result });
       
       if (!insertId) {
         throw new Error(`Failed to get insertId for relationship`);
@@ -458,6 +502,14 @@ export class DatabaseStorage implements IStorage {
       
       return newRelationship;
     } catch (error: any) {
+      console.error(`❌ Relationship insert failed:`, {
+        errorCode: error.code,
+        errorErrno: error.errno,
+        errorMessage: error.message,
+        sqlMessage: error.sqlMessage,
+        sql: error.sql
+      });
+
       // Handle unique constraint violation gracefully
       // MySQL error code for duplicate entry is ER_DUP_ENTRY (1062)
       if (error.code === 'ER_DUP_ENTRY' || error.errno === 1062) {

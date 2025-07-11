@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import session from "express-session";
 import { storage } from "./storage";
 import { insertUserSchema, insertInputSchema } from "@shared/schema";
-import { parseInputToEntityRelationships, createEmbedding, parseQueryToEntityRelationship, synthesizeAnswerFromContext, detectExistingEntitiesForContextUpdate, generateRelationshipDescription } from "./llm";
+import { parseInputToEntityRelationships, createEmbedding, parseQueryToEntityRelationship, synthesizeAnswerFromContext, generateRelationshipDescription } from "./llm";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 
@@ -149,13 +149,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user.username
         );
         
-        // First, detect and update context for existing entities
-        await detectExistingEntitiesForContextUpdate(
-          entityRelationships,
-          req.session.userId!,
-          user.username,
-          inputData.content
-        );
+        // Skip entity context updates to avoid complex graph operations during input creation
+        // We'll rely on database-level duplicate checking for relationships
         
         console.log("🔗 Creating GraphRAG entities and relationships...");
         
