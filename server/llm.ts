@@ -24,7 +24,7 @@ Rules:
 4. Create one triple for each unique relationship between entities
 5. Be precise with relationship descriptions
 6. Return valid JSON array only
-7. SPECIAL RULE: When the input contains entities describing something subjectively ("is fat", "is annoying", "is beautiful", "is delicious", "has long arms", "was too tired", "had a good head on his shoulders", etc.). If the entity is the user, inject the user into it (e.g. "<restaurant> has delicious food" becomes "<user> says <restaurant> has delicious food").
+7. SPECIAL RULE: When the input contains entities describing something's properties ("is fat", "is annoying", "is beautiful", "is delicious", "has long arms", "was too tired", "had a good head on his shoulders", "likes to", "loves to", "prefers not to", etc.). If the entity is the user, inject the user into it (e.g. "<restaurant> has delicious food" becomes "<user> says <restaurant> has delicious food").
 
 Examples:
 Input: "Jake Owen is my favorite country artist"
