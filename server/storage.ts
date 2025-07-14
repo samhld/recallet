@@ -243,41 +243,61 @@ export class DatabaseStorage implements IStorage {
       return { originalInputs: [], targetEntities: [] };
     }
     
-    // Step 2: Graph Walk (2 edges)
+    // Step 2: Recursive Graph Walk
     console.log("🚶 Walking graph from entity id:", startingEntityId);
+    const maxDepth = 4; // Configurable max traversal depth
     
-    // First edge: direct relationships from starting entity
-    const firstEdgeQuery = await db.execute(sql`
-      SELECT r.id, r.relationship, r.relationship_desc, r.relationship_desc_vec, 
-             r.original_input, r.target_entity_id,
-             e2.name as target_entity_name
-      FROM relationships r
-      INNER JOIN entities e2 ON r.target_entity_id = e2.id
-      WHERE r.user_id = ${userId} AND r.source_entity_id = ${startingEntityId}
+    // Use recursive CTE to traverse relationship graph dynamically
+    const graphWalkQuery = await db.execute(sql`
+      WITH RECURSIVE relationship_chain AS (
+        -- Anchor: start with initial relationships from starting entity
+        SELECT
+          r.id,
+          r.source_entity_id,
+          r.target_entity_id,
+          r.relationship,
+          r.relationship_desc,
+          r.relationship_desc_vec,
+          r.original_input,
+          1 AS step
+        FROM relationships r
+        WHERE r.user_id = ${userId} AND r.source_entity_id = ${startingEntityId}
+
+        UNION ALL
+
+        -- Recursive: find next relationships where source matches previous target
+        SELECT
+          r.id,
+          r.source_entity_id,
+          r.target_entity_id,
+          r.relationship,
+          r.relationship_desc,
+          r.relationship_desc_vec,
+          r.original_input,
+          rc.step + 1
+        FROM relationships r
+        JOIN relationship_chain rc ON r.source_entity_id = rc.target_entity_id
+        WHERE rc.step < ${maxDepth} AND r.user_id = ${userId}
+      )
+      SELECT
+        rc.id,
+        rc.relationship,
+        rc.relationship_desc,
+        rc.relationship_desc_vec,
+        rc.original_input,
+        rc.target_entity_id,
+        e.name as target_entity_name,
+        rc.step
+      FROM relationship_chain rc
+      JOIN entities e ON rc.target_entity_id = e.id
+      ORDER BY rc.step, rc.id
     `);
     
-    // Second edge: relationships from first-edge targets
-    const firstEdgeTargets = (firstEdgeQuery as any).map((row: any) => row.target_entity_id);
-    let secondEdgeQuery: any = [];
-    
-    if (firstEdgeTargets.length > 0) {
-      const targetIdsStr = firstEdgeTargets.join(',');
-      secondEdgeQuery = await db.execute(sql`
-        SELECT r.id, r.relationship, r.relationship_desc, r.relationship_desc_vec,
-               r.original_input, r.target_entity_id,
-               e2.name as target_entity_name
-        FROM relationships r
-        INNER JOIN entities e2 ON r.target_entity_id = e2.id
-        WHERE r.user_id = ${userId} AND r.source_entity_id IN (${sql.raw(targetIdsStr)})
-      `);
-    }
-    
-    // Combine all discovered relationships
-    const allRelationships = [...(firstEdgeQuery as any), ...(secondEdgeQuery as any)];
-    console.log(`🔗 Found ${(firstEdgeQuery as any).length} first-edge and ${(secondEdgeQuery as any).length} second-edge relationships`);
+    const allRelationships = (graphWalkQuery as any)[0] || [];
+    console.log(`🔗 Found ${allRelationships.length} relationships across ${maxDepth} levels using recursive graph walk`);
     
     if (allRelationships.length === 0) {
-      console.log("❌ No relationships found in graph walk");
+      console.log("❌ No relationships found in recursive graph walk");
       return { originalInputs: [], targetEntities: [] };
     }
     
