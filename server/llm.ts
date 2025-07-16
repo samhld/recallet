@@ -25,6 +25,10 @@ Rules:
 5. Be precise with relationship descriptions
 6. Return valid JSON array only
 7. SPECIAL RULE: When the input contains entities describing something's properties ("is fat", "is annoying", "is beautiful", "is delicious", "has long arms", "was too tired", "had a good head on his shoulders", "likes to", "loves to", "prefers not to", etc.). If the entity is the user, inject the user into it (e.g. "<restaurant> has delicious food" becomes "<user> says <restaurant> has delicious food").
+8. You will produce JSON objects for these entity-relationship triples. A single triple will look like this: {"source_entity": <parsed_source_entity>, "target_entity": <parsed_target_entity>, "relationship": <parsed_relationship>, "aliases": <whether or not the entities are aliases of one another>}
+If multiple entity-relationship triples are identified, they should each have a JSON object to represent them according to the schema above. For example:
+"I like the color purple, even though Elvis Presley, who I don't really like, really likes purple too" should be parsed into the following array of three JSOB objects:
+[{"source_entity": "<user>", "target_entity": "the color purple", "aliases": false}, {"source_entity": "<user>", "target_entity": "Elvis Presley", "relationship": "doesn't really like", "aliases": false}, {"source_entity": "Elvis Presley", "target_entity": "the color purple", "relationship": "really likes", "aliases": false}]
 
 Examples:
 Input: "Jake Owen is my favorite country artist"
@@ -250,7 +254,9 @@ export async function synthesizeAnswerFromContext(
 Context from knowledge base:
 ${originalInputs.map((input, index) => `${index + 1}. "${input}"`).join("\n")}
 
-Based on this context, provide a direct, helpful answer to the question. If the context contains comparative information (like "more than", "less than", "most", "favorite"), use that to give a precise answer. Keep your response concise and natural.`;
+Based on this context, provide a direct, helpful answer to the question. If the 
+If the context contains comparative information (like "more than", "less than", "most", "favorite"), use that to give a precise answer. 
+Keep your response concise and natural.`;
 
   try {
     console.log("🧠 === LLM ANSWER SYNTHESIS START ===");
