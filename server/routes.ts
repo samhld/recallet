@@ -159,6 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Process each relationship using GraphRAG approach
         for (const er of entityRelationships) {
           console.log(`\n📊 Processing relationship: ${er.sourceEntity} -> ${er.relationship} -> ${er.targetEntity}`);
+          console.log(`🔗 Is alias relationship: ${er.aliases}`);
           
           // Get or create source entity (with description generation only if new)
           const sourceEntity = await storage.getOrCreateEntity(
@@ -173,6 +174,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             er.targetEntity,
             user.username
           );
+          
+          // Handle alias relationship if detected
+          if (er.aliases) {
+            console.log(`🔗 Handling alias relationship between ${er.sourceEntity} and ${er.targetEntity}`);
+            await storage.handleAliasRelationship(sourceEntity.id, targetEntity.id, req.session.userId!);
+          }
           
           // Create relationship embedding
           const relationshipEmbedding = await createEmbedding(er.relationship);

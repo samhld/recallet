@@ -8,6 +8,27 @@
       "when": 1752129379571,
       "tag": "0000_watery_ghost_rider",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1752518666608,
+      "tag": "0001_complete_relationships_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1753032000000,
+      "tag": "0002_alias_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1753032100000,
+      "tag": "0003_drop_constraints",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { users, inputs, queries, entities, relationships, type User, type InsertUser, type Input, type InsertInput, type Query, type InsertQuery, type Entity, type Relationship, type InsertRelationship } from "@shared/schema";
+import { users, inputs, queries, entities, relationships, aliasGroups, entityAliases, type User, type InsertUser, type Input, type InsertInput, type Query, type InsertQuery, type Entity, type Relationship, type InsertRelationship, type AliasGroup, type EntityAlias } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, ilike, or, and, sql } from "drizzle-orm";
 import { generateEntityDescription, createEmbedding } from "./llm";
@@ -39,6 +39,13 @@ export interface IStorage {
     totalQueries: number;
     thisWeekInputs: number;
   }>;
+  
+  // Alias management operations
+  createAliasGroup(userId: number, entityIds: number[], canonicalEntityId?: number): Promise<AliasGroup>;
+  addEntityToAliasGroup(entityId: number, groupId: number, userId: number): Promise<EntityAlias>;
+  getAliasGroup(entityId: number): Promise<AliasGroup | undefined>;
+  mergeAliasGroups(groupId1: number, groupId2: number, userId: number): Promise<AliasGroup>;
+  handleAliasRelationship(sourceEntityId: number, targetEntityId: number, userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -301,14 +308,14 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Step 3: Relationship Embedding Match with Statistical Filtering
-    const relationshipDistances = allRelationships.map(rel => {
+    const relationshipDistances = allRelationships.map((rel: any) => {
       const relDescVec = rel.relationship_desc_vec;
       if (!relDescVec) return { ...rel, distance: 1.0 };
       
       // Calculate cosine distance against relationship_desc_vec
       const distance = this.calculateCosineDistance(relationshipEmbedding, relDescVec);
       return { ...rel, distance };
-    }).filter(rel => rel.distance < 0.76); // Only keep good matches (>0.24 similarity)
+    }).filter((rel: any) => rel.distance < 0.76); // Only keep good matches (>0.24 similarity)
     
     if (relationshipDistances.length === 0) {
       console.log("❌ No relationships passed distance threshold");
@@ -316,16 +323,16 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Calculate statistics for filtering
-    const distances = relationshipDistances.map(rel => rel.distance);
-    const mean = distances.reduce((sum, d) => sum + d, 0) / distances.length;
-    const variance = distances.reduce((sum, d) => sum + Math.pow(d - mean, 2), 0) / distances.length;
+    const distances = relationshipDistances.map((rel: any) => rel.distance);
+    const mean = distances.reduce((sum: number, d: number) => sum + d, 0) / distances.length;
+    const variance = distances.reduce((sum: number, d: number) => sum + Math.pow(d - mean, 2), 0) / distances.length;
     const stdDev = Math.sqrt(variance);
     const threshold = mean + stdDev; // 1 standard deviation greater than mean (since lower distance = better match)
     
     console.log(`📊 Distance stats - Mean: ${mean.toFixed(4)}, StdDev: ${stdDev.toFixed(4)}, Threshold: ${threshold.toFixed(4)}`);
     
     // Filter results by statistical threshold (keep distances at most 1 std dev greater than mean)
-    const filteredResults = relationshipDistances.filter(rel => rel.distance <= threshold);
+    const filteredResults = relationshipDistances.filter((rel: any) => rel.distance <= threshold);
     
     console.log(`🎯 ${filteredResults.length} relationships passed statistical filtering`);
     
@@ -715,6 +722,126 @@ export class DatabaseStorage implements IStorage {
     // Import the embedding creation function from llm.ts
     const { createEmbedding } = await import('./llm.js');
     return await createEmbedding(entityName);
+  }
+
+  // Alias management functions
+  async createAliasGroup(userId: number, entityIds: number[], canonicalEntityId?: number): Promise<AliasGroup> {
+    console.log(`🔗 Creating alias group for user ${userId} with entities: ${entityIds.join(', ')}`);
+    
+    const result = await db
+      .insert(aliasGroups)
+      .values({
+        userId,
+        canonicalEntityId,
+      });
+
+    const insertId = (result as any)[0]?.insertId;
+    if (!insertId) {
+      throw new Error('Failed to create alias group');
+    }
+
+    // Add all entities to the alias group
+    const aliasEntries = entityIds.map(entityId => ({
+      entityId,
+      aliasGroupId: Number(insertId),
+      userId,
+    }));
+
+    await db.insert(entityAliases).values(aliasEntries);
+
+    const [newGroup] = await db
+      .select()
+      .from(aliasGroups)
+      .where(eq(aliasGroups.id, Number(insertId)));
+
+    console.log(`✅ Created alias group ${newGroup.id} with ${entityIds.length} entities`);
+    return newGroup;
+  }
+
+  async addEntityToAliasGroup(entityId: number, groupId: number, userId: number): Promise<EntityAlias> {
+    console.log(`🔗 Adding entity ${entityId} to alias group ${groupId}`);
+    
+    await db
+      .insert(entityAliases)
+      .values({
+        entityId,
+        aliasGroupId: groupId,
+        userId,
+      });
+
+    const [newAlias] = await db
+      .select()
+      .from(entityAliases)
+      .where(eq(entityAliases.entityId, entityId));
+
+    console.log(`✅ Added entity ${entityId} to alias group ${groupId}`);
+    return newAlias;
+  }
+
+  async getAliasGroup(entityId: number): Promise<AliasGroup | undefined> {
+    const [alias] = await db
+      .select()
+      .from(entityAliases)
+      .where(eq(entityAliases.entityId, entityId));
+
+    if (!alias) return undefined;
+
+    const [group] = await db
+      .select()
+      .from(aliasGroups)
+      .where(eq(aliasGroups.id, alias.aliasGroupId));
+
+    return group || undefined;
+  }
+
+  async mergeAliasGroups(groupId1: number, groupId2: number, _userId: number): Promise<AliasGroup> {
+    console.log(`🔗 Merging alias groups ${groupId1} and ${groupId2}`);
+    
+    // Move all entities from group2 to group1
+    await db
+      .update(entityAliases)
+      .set({ aliasGroupId: groupId1 })
+      .where(eq(entityAliases.aliasGroupId, groupId2));
+
+    // Delete the empty group2
+    await db.delete(aliasGroups).where(eq(aliasGroups.id, groupId2));
+
+    const [mergedGroup] = await db
+      .select()
+      .from(aliasGroups)
+      .where(eq(aliasGroups.id, groupId1));
+
+    console.log(`✅ Merged alias groups into group ${groupId1}`);
+    return mergedGroup;
+  }
+
+  async handleAliasRelationship(sourceEntityId: number, targetEntityId: number, userId: number): Promise<void> {
+    console.log(`🔍 Handling alias relationship between entities ${sourceEntityId} and ${targetEntityId}`);
+    
+    // Step 0: Get existing group info
+    const sourceGroup = await this.getAliasGroup(sourceEntityId);
+    const targetGroup = await this.getAliasGroup(targetEntityId);
+
+    if (!sourceGroup && !targetGroup) {
+      // Case A: Neither entity is in a group - create new group
+      console.log('📝 Case A: Creating new alias group for both entities');
+      await this.createAliasGroup(userId, [sourceEntityId, targetEntityId]);
+    } else if (sourceGroup && !targetGroup) {
+      // Case B: Source is in group, target is not - add target to source group
+      console.log('📝 Case B: Adding target entity to existing source group');
+      await this.addEntityToAliasGroup(targetEntityId, sourceGroup.id, userId);
+    } else if (!sourceGroup && targetGroup) {
+      // Case B (reverse): Target is in group, source is not - add source to target group
+      console.log('📝 Case B (reverse): Adding source entity to existing target group');
+      await this.addEntityToAliasGroup(sourceEntityId, targetGroup.id, userId);
+    } else if (sourceGroup && targetGroup && sourceGroup.id !== targetGroup.id) {
+      // Case C: Both entities are in different groups - merge groups
+      console.log('📝 Case C: Merging two existing alias groups');
+      await this.mergeAliasGroups(sourceGroup.id, targetGroup.id, userId);
+    } else {
+      // Both entities are already in the same group - nothing to do
+      console.log('📝 Both entities already in same alias group - no action needed');
+    }
   }
 }
 

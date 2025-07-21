@@ -80,6 +80,20 @@ export const relationships = mysqlTable("relationships", {
   };
 });
 
+export const aliasGroups = mysqlTable("alias_groups", {
+  id: serial("id").primaryKey(),
+  userId: bigint("user_id", { mode: "number", unsigned: true }).notNull().references(() => users.id),
+  canonicalEntityId: bigint("canonical_entity_id", { mode: "number", unsigned: true }).references(() => entities.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const entityAliases = mysqlTable("entity_aliases", {
+  entityId: bigint("entity_id", { mode: "number", unsigned: true }).primaryKey().references(() => entities.id),
+  aliasGroupId: bigint("alias_group_id", { mode: "number", unsigned: true }).notNull().references(() => aliasGroups.id),
+  userId: bigint("user_id", { mode: "number", unsigned: true }).notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 
 
 // Relations
@@ -88,6 +102,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   queries: many(queries),
   entities: many(entities),
   relationships: many(relationships),
+  aliasGroups: many(aliasGroups),
+  entityAliases: many(entityAliases),
 }));
 
 export const inputsRelations = relations(inputs, ({ one }) => ({
@@ -111,6 +127,11 @@ export const entitiesRelations = relations(entities, ({ one, many }) => ({
   }),
   sourceRelationships: many(relationships, { relationName: "sourceEntity" }),
   targetRelationships: many(relationships, { relationName: "targetEntity" }),
+  aliasGroup: one(entityAliases, {
+    fields: [entities.id],
+    references: [entityAliases.entityId],
+  }),
+  canonicalAliasGroups: many(aliasGroups, { relationName: "canonicalEntity" }),
 }));
 
 export const relationshipsRelations = relations(relationships, ({ one }) => ({
@@ -127,6 +148,34 @@ export const relationshipsRelations = relations(relationships, ({ one }) => ({
     fields: [relationships.targetEntityId],
     references: [entities.id],
     relationName: "targetEntity",
+  }),
+}));
+
+export const aliasGroupsRelations = relations(aliasGroups, ({ one, many }) => ({
+  user: one(users, {
+    fields: [aliasGroups.userId],
+    references: [users.id],
+  }),
+  canonicalEntity: one(entities, {
+    fields: [aliasGroups.canonicalEntityId],
+    references: [entities.id],
+    relationName: "canonicalEntity",
+  }),
+  entityAliases: many(entityAliases),
+}));
+
+export const entityAliasesRelations = relations(entityAliases, ({ one }) => ({
+  user: one(users, {
+    fields: [entityAliases.userId],
+    references: [users.id],
+  }),
+  entity: one(entities, {
+    fields: [entityAliases.entityId],
+    references: [entities.id],
+  }),
+  aliasGroup: one(aliasGroups, {
+    fields: [entityAliases.aliasGroupId],
+    references: [aliasGroups.id],
   }),
 }));
 
@@ -160,6 +209,15 @@ export const insertRelationshipSchema = createInsertSchema(relationships).omit({
   createdAt: true,
 });
 
+export const insertAliasGroupSchema = createInsertSchema(aliasGroups).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertEntityAliasSchema = createInsertSchema(entityAliases).omit({
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -172,3 +230,8 @@ export type InsertEntity = z.infer<typeof insertEntitySchema>;
 export type Entity = typeof entities.$inferSelect;
 export type InsertRelationship = z.infer<typeof insertRelationshipSchema>;
 export type Relationship = typeof relationships.$inferSelect;
+
+export type InsertAliasGroup = z.infer<typeof insertAliasGroupSchema>;
+export type AliasGroup = typeof aliasGroups.$inferSelect;
+export type InsertEntityAlias = z.infer<typeof insertEntityAliasSchema>;
+export type EntityAlias = typeof entityAliases.$inferSelect;

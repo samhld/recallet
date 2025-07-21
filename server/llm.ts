@@ -9,6 +9,7 @@ export interface EntityRelationship {
   sourceEntity: string;
   relationship: string;
   targetEntity: string;
+  aliases: boolean;
 }
 
 export async function parseInputToEntityRelationships(
@@ -27,30 +28,34 @@ Rules:
 7. SPECIAL RULE: When the input contains entities describing something's properties ("is fat", "is annoying", "is beautiful", "is delicious", "has long arms", "was too tired", "had a good head on his shoulders", "likes to", "loves to", "prefers not to", etc.). If the entity is the user, inject the user into it (e.g. "<restaurant> has delicious food" becomes "<user> says <restaurant> has delicious food").
 8. You will produce JSON objects for these entity-relationship triples. A single triple will look like this: {"source_entity": <parsed_source_entity>, "target_entity": <parsed_target_entity>, "relationship": <parsed_relationship>, "aliases": <whether or not the entities are aliases of one another>}
 If multiple entity-relationship triples are identified, they should each have a JSON object to represent them according to the schema above. For example:
-"I like the color purple, even though Elvis Presley, who I don't really like, really likes purple too" should be parsed into the following array of three JSOB objects:
-[{"source_entity": "<user>", "target_entity": "the color purple", "aliases": false}, {"source_entity": "<user>", "target_entity": "Elvis Presley", "relationship": "doesn't really like", "aliases": false}, {"source_entity": "Elvis Presley", "target_entity": "the color purple", "relationship": "really likes", "aliases": false}]
+"I like the color purple, even though Elvis Presley, who I don't really like, really likes purple too" should be parsed into the following array of three JSON objects:
+[{"source_entity": "<user>", "target_entity": "the color purple", "relationship": "likes", "aliases": false}, {"source_entity": "<user>", "target_entity": "Elvis Presley", "relationship": "doesn't really like", "aliases": false}, {"source_entity": "Elvis Presley", "target_entity": "the color purple", "relationship": "really likes", "aliases": false}]
+9. Support for aliases: When given an input that has an entity-relationship triple in the shape of entity-is-entity (where "is" is used explicitly and the source and target entities are both entities rather than descriptors), set "aliases": true. For example: "Bob is my husband" would be parsed as {"source_entity": "Bob", "target_entity": "<user>'s husband", "relationship": "is", "aliases": true}.
 
 Examples:
 Input: "Jake Owen is my favorite country artist"
-Output: [{"sourceEntity": "<user>", "relationship": "favorite country artist is", "targetEntity": "Jake Owen"}]
+Output: [{"source_entity": "<user>", "relationship": "favorite country artist is", "target_entity": "Jake Owen", "aliases": false}]
 
 Input: "my girlfriend has a crush on jake owen"
-Output: [{"sourceEntity": "<user>'s girlfriend", "relationship": "has crush on", "targetEntity": "Jake Owen"}]
+Output: [{"source_entity": "<user>'s girlfriend", "relationship": "has crush on", "target_entity": "Jake Owen", "aliases": false}]
 
 Input: "I love Thomas Rhett and his music is amazing"
 Output: [
-  {"sourceEntity": "<user>", "relationship": "loves", "targetEntity": "Thomas Rhett"},
-  {"sourceEntity": "<user>", "relationship": "claims music is amazing", "targetEntity": "Thomas Rhett's music"}
+  {"source_entity": "<user>", "relationship": "loves", "target_entity": "Thomas Rhett", "aliases": false},
+  {"source_entity": "<user>", "relationship": "claims music is amazing", "target_entity": "Thomas Rhett's music", "aliases": false}
 ]
 
 Input: "the food at Mario's is too spicy"
-Output: [{"sourceEntity": "<user>", "relationship": "says is too spicy", "targetEntity": "the food at Mario's"}]
+Output: [{"source_entity": "<user>", "relationship": "says is too spicy", "target_entity": "the food at Mario's", "aliases": false}]
 
 Input: "Carie from work is manipulative"
-Output: [{"sourceEntity": "<user>", "relationship": "claims is manipulative", "targetEntity": "Carie from work"}]
+Output: [{"source_entity": "<user>", "relationship": "claims is manipulative", "target_entity": "Carie from work", "aliases": false}]
 
 Input: "the unagi at crazy fish is too saucy"
-Output: [{"sourceEntity": "<user>", "relationship": "says is too saucy", "targetEntity": "the unagi at crazy fish"}]
+Output: [{"source_entity": "<user>", "relationship": "says is too saucy", "target_entity": "the unagi at crazy fish", "aliases": false}]
+
+Input: "Bob is my husband"
+Output: [{"source_entity": "Bob", "target_entity": "<user>'s husband", "relationship": "is", "aliases": true}]
 
 Now parse this input: "${input}"`;
 
@@ -89,11 +94,12 @@ Now parse this input: "${input}"`;
       relationships = [relationships];
     }
 
-    // Replace "<user>" with actual username in all relationships
+    // Replace "<user>" with actual username in all relationships and convert to camelCase
     relationships = relationships.map((rel: any) => ({
-      ...rel,
-      sourceEntity: rel.sourceEntity.replace(/<user>/g, username),
-      targetEntity: rel.targetEntity.replace(/<user>/g, username),
+      sourceEntity: rel.source_entity.replace(/<user>/g, username),
+      relationship: rel.relationship,
+      targetEntity: rel.target_entity.replace(/<user>/g, username),
+      aliases: rel.aliases || false,
     }));
 
     console.log(
